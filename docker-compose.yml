@@ -1,0 +1,185 @@
+name: rca_copilot
+
+services:
+  mongodb:
+    image: mongo:7.0.12
+    container_name: rca-copilot-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-rca_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change-me}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
+    ports:
+      - "${MONGO_BIND_HOST:-127.0.0.1}:${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --eval 'db.adminCommand(\"ping\").ok' mongodb://$${MONGO_INITDB_ROOT_USERNAME}:$${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/admin | grep 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: rca-copilot-backend
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
+      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
+      MONGO_RAW_LOGS_COLLECTION: raw_logs
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read()\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  parser-worker:
+    build:
+      context: .
+      dockerfile: parser_worker/Dockerfile
+    container_name: rca-copilot-parser-worker
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
+      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
+      MONGO_RAW_LOGS_COLLECTION: raw_logs
+      MONGO_PARSED_LOGS_COLLECTION: parsed_logs
+      PARSER_VERSION: ${PARSER_VERSION:-parser-v1}
+      PARSER_BATCH_SIZE: ${PARSER_BATCH_SIZE:-100}
+      PARSER_POLL_INTERVAL_SECONDS: ${PARSER_POLL_INTERVAL_SECONDS:-2}
+      PARSER_HEALTH_FILE: /tmp/rca-copilot-parser-worker.health
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -m parser_worker.healthcheck",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  correlation-worker:
+    build:
+      context: .
+      dockerfile: correlation_worker/Dockerfile
+    container_name: rca-copilot-correlation-worker
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
+      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
+      MONGO_PARSED_LOGS_COLLECTION: parsed_logs
+      MONGO_EVENT_EDGES_COLLECTION: event_edges
+      CORRELATION_VERSION: ${CORRELATION_VERSION:-correlation-v1}
+      CORRELATION_BATCH_SIZE: ${CORRELATION_BATCH_SIZE:-100}
+      CORRELATION_POLL_INTERVAL_SECONDS: ${CORRELATION_POLL_INTERVAL_SECONDS:-2}
+      CORRELATION_REQUEST_ID_MAX_GAP_SECONDS: ${CORRELATION_REQUEST_ID_MAX_GAP_SECONDS:-300}
+      CORRELATION_RESOURCE_ID_MAX_GAP_SECONDS: ${CORRELATION_RESOURCE_ID_MAX_GAP_SECONDS:-600}
+      CORRELATION_MAX_EVENTS_PER_GROUP: ${CORRELATION_MAX_EVENTS_PER_GROUP:-100}
+      CORRELATION_SKIP_PERIODIC_GROUPS: ${CORRELATION_SKIP_PERIODIC_GROUPS:-true}
+      CORRELATION_HEALTH_FILE: /tmp/rca-copilot-correlation-worker.health
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -m correlation_worker.healthcheck",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  incident-worker:
+    build:
+      context: .
+      dockerfile: incident_worker/Dockerfile
+    container_name: rca-copilot-incident-worker
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
+      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
+      MONGO_PARSED_LOGS_COLLECTION: parsed_logs
+      MONGO_EVENT_EDGES_COLLECTION: event_edges
+      MONGO_INCIDENTS_COLLECTION: incidents
+      MONGO_WORKER_STATE_COLLECTION: worker_state
+      INCIDENT_WORKER_STATE_KEY: incident_worker_v1
+      CORRELATION_VERSION: ${CORRELATION_VERSION:-correlation-v1}
+      INCIDENT_VERSION: ${INCIDENT_VERSION:-incident-v1}
+      INCIDENT_BATCH_SIZE: ${INCIDENT_BATCH_SIZE:-100}
+      INCIDENT_POLL_INTERVAL_SECONDS: ${INCIDENT_POLL_INTERVAL_SECONDS:-2}
+      INCIDENT_MAX_DEPTH: ${INCIDENT_MAX_DEPTH:-3}
+      INCIDENT_MAX_EVENTS: ${INCIDENT_MAX_EVENTS:-100}
+      INCIDENT_WINDOW_BEFORE_SECONDS: ${INCIDENT_WINDOW_BEFORE_SECONDS:-600}
+      INCIDENT_WINDOW_AFTER_SECONDS: ${INCIDENT_WINDOW_AFTER_SECONDS:-120}
+      INCIDENT_HEALTH_FILE: /tmp/rca-copilot-incident-worker.health
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -m incident_worker.healthcheck",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  enrichment-worker:
+    build:
+      context: .
+      dockerfile: enrichment_worker/Dockerfile
+    container_name: rca-copilot-enrichment-worker
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
+      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
+      MONGO_PARSED_LOGS_COLLECTION: parsed_logs
+      MONGO_EVENT_EDGES_COLLECTION: event_edges
+      MONGO_INCIDENTS_COLLECTION: incidents
+      MONGO_WORKER_STATE_COLLECTION: worker_state
+      ENRICHMENT_WORKER_STATE_KEY: enrichment_worker_v1
+      ENRICHMENT_VERSION: ${ENRICHMENT_VERSION:-enrichment-v1}
+      ENRICHMENT_BATCH_SIZE: ${ENRICHMENT_BATCH_SIZE:-100}
+      ENRICHMENT_POLL_INTERVAL_SECONDS: ${ENRICHMENT_POLL_INTERVAL_SECONDS:-2}
+      ENRICHMENT_HEALTH_FILE: /tmp/rca-copilot-enrichment-worker.health
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -m enrichment_worker.healthcheck",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  mongodb_data:

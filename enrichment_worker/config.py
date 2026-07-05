@@ -1,0 +1,64 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return int(value)
+
+
+def _env_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return float(value)
+
+
+@dataclass(frozen=True)
+class EnrichmentConfig:
+    mongo_uri: str = "mongodb://rca_admin:change-me@127.0.0.1:27017/rca_copilot?authSource=admin"
+    mongo_database: str = "rca_copilot"
+    parsed_logs_collection: str = "parsed_logs"
+    event_edges_collection: str = "event_edges"
+    incidents_collection: str = "incidents"
+    worker_state_collection: str = "worker_state"
+    worker_state_key: str = "enrichment_worker_v1"
+    enrichment_version: str = "enrichment-v1"
+    batch_size: int = 100
+    poll_interval_seconds: float = 2.0
+    health_file: str = "/tmp/rca-copilot-enrichment-worker.health"
+
+    @classmethod
+    def from_env(cls) -> EnrichmentConfig:
+        return cls(
+            mongo_uri=os.getenv("MONGO_URI", cls.mongo_uri),
+            mongo_database=os.getenv("MONGO_DATABASE", cls.mongo_database),
+            parsed_logs_collection=os.getenv(
+                "MONGO_PARSED_LOGS_COLLECTION",
+                cls.parsed_logs_collection,
+            ),
+            event_edges_collection=os.getenv(
+                "MONGO_EVENT_EDGES_COLLECTION",
+                cls.event_edges_collection,
+            ),
+            incidents_collection=os.getenv(
+                "MONGO_INCIDENTS_COLLECTION",
+                cls.incidents_collection,
+            ),
+            worker_state_collection=os.getenv(
+                "MONGO_WORKER_STATE_COLLECTION",
+                cls.worker_state_collection,
+            ),
+            worker_state_key=os.getenv("ENRICHMENT_WORKER_STATE_KEY", cls.worker_state_key),
+            enrichment_version=os.getenv("ENRICHMENT_VERSION", cls.enrichment_version),
+            batch_size=_env_int("ENRICHMENT_BATCH_SIZE", cls.batch_size),
+            poll_interval_seconds=_env_float(
+                "ENRICHMENT_POLL_INTERVAL_SECONDS",
+                cls.poll_interval_seconds,
+            ),
+            health_file=os.getenv("ENRICHMENT_HEALTH_FILE", cls.health_file),
+        )

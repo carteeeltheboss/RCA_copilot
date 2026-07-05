@@ -67,6 +67,112 @@ system gets smarter over time and Tier 3 fires less and less.
 
 ## Architecture
 
+Current implemented ingestion path:
+
+```
+journald
+  -> collector
+  -> FastAPI
+  -> raw_logs
+  -> parser-worker
+  -> parsed_logs
+  -> correlation-worker
+  -> event_edges
+  -> incident-worker
+  -> enrichment-worker
+  -> incidents
+```
+
+The correlation worker reads only successful `parsed_logs` documents and preserves
+`parsed_logs` unchanged. It writes directed edges to `event_edges` when events share a
+non-null `request_id` or a resource ID.
+
+Edge direction is chronological: the earlier parsed event is `source_event_id`, and the
+later parsed event is `target_event_id`. Equal-timestamp and self edges are skipped.
+Edges are upserted idempotently with a unique key on `source_event_id`,
+`target_event_id`, `reason`, `shared_value`, and `correlation_version`.
+
+The incident worker reads only successful `parsed_logs` documents, preserves
+`parsed_logs` and `event_edges` unchanged, and writes deterministic incident
+candidates to `incidents`. It does not merge incidents, infer causality, identify a
+root cause, rank causes, call an LLM, create embeddings, or use ChromaDB.
+
+The enrichment worker reads candidate incidents, loads the referenced `event_ids` from
+`parsed_logs` and `edge_ids` from `event_edges`, and updates each incident with a
+versioned deterministic investigation record. It preserves the original incident
+fields, writes `enrichment_version`, `enriched_at`, an ordered `timeline`, involved
+request IDs, resources, hosts, levels, timing/count metrics, and deterministic
+`summary`, `impact_summary`, and `evidence_summary` fields before setting
+`status` to `enriched`.
+
+Enrichment is intentionally bounded: it does not call an LLM, infer root cause, rank
+causes, create causal edges, create embeddings, use ChromaDB, or integrate with MSI.
+Summaries describe only observed events, services, resources, requests, warnings,
+errors, and correlation edge counts. If only one event is available, the evidence
+summary states that evidence is limited to one event.
+
+Incident seeds are detected by deterministic rules:
+
+- `level` is `ERROR` or `CRITICAL`
+- message contains `Traceback`
+- message contains `Exception`
+- message contains `failed` or `failure`
+- message contains `timeout` or `timed out`
+- message indicates a resource entered an `ERROR` state
+- message indicates a service or process failure
+
+Obvious false positives such as `0 failures`, `no error`, `error rate`, and quoted or
+historical text are suppressed where practical. Each incident stores the primary
+`seed_reason` plus detailed `seed_detection_reasons` and
+`seed_detection_exclusions`.
+
+Incident subgraphs start from the seed event and traverse existing `event_edges` in
+both incoming and outgoing directions. Traversal is bounded by maximum depth, maximum
+events, and a time window around the seed. Defaults are depth `3`, `100` events, `10`
+minutes before the seed, and `2` minutes after the seed. Incidents are upserted
+idempotently with a unique index on `seed_event_id` and `incident_version`.
+
+Default correlation windows:
+
+| Rule | Reason | Confidence | Maximum gap |
+|------|--------|------------|-------------|
+| Same request ID | `same_request_id` | `1.0` | 5 minutes |
+| Shared resource ID | `shared_resource_id` | `0.9` | 10 minutes |
+
+Configure the worker with:
+
+| Variable | Default |
+|----------|---------|
+| `MONGO_EVENT_EDGES_COLLECTION` | `event_edges` |
+| `CORRELATION_VERSION` | `correlation-v1` |
+| `CORRELATION_BATCH_SIZE` | `100` |
+| `CORRELATION_POLL_INTERVAL_SECONDS` | `2` |
+| `CORRELATION_REQUEST_ID_MAX_GAP_SECONDS` | `300` |
+| `CORRELATION_RESOURCE_ID_MAX_GAP_SECONDS` | `600` |
+
+Incident worker configuration:
+
+| Variable | Default |
+|----------|---------|
+| `MONGO_INCIDENTS_COLLECTION` | `incidents` |
+| `INCIDENT_VERSION` | `incident-v1` |
+| `INCIDENT_BATCH_SIZE` | `100` |
+| `INCIDENT_POLL_INTERVAL_SECONDS` | `2` |
+| `INCIDENT_MAX_DEPTH` | `3` |
+| `INCIDENT_MAX_EVENTS` | `100` |
+| `INCIDENT_WINDOW_BEFORE_SECONDS` | `600` |
+| `INCIDENT_WINDOW_AFTER_SECONDS` | `120` |
+
+Enrichment worker configuration:
+
+| Variable | Default |
+|----------|---------|
+| `MONGO_INCIDENTS_COLLECTION` | `incidents` |
+| `MONGO_WORKER_STATE_COLLECTION` | `worker_state` |
+| `ENRICHMENT_VERSION` | `enrichment-v1` |
+| `ENRICHMENT_BATCH_SIZE` | `100` |
+| `ENRICHMENT_POLL_INTERVAL_SECONDS` | `2` |
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     OpenStack Deployment                     │
@@ -206,8 +312,8 @@ System:    returns LaTeX → sysadmin compiles with pdflatex → clean diagram
 ```
 openstack-rca-copilot/
 │
-├── docker-compose.yml          # spin up everything: mongo, chroma, ollama, api
-├── .env.example                # copy to .env and fill in your values
+├── docker-compose.yml          # infrastructure milestone 1: MongoDB only
+├── .env.example                # copy to .env and set MongoDB values
 ├── requirements.txt
 ├── config.py                   # central config loaded from .env
 │
@@ -251,70 +357,398 @@ openstack-rca-copilot/
 
 ---
 
-## Getting Started
+## Milestone 2: Ingestion Backend
 
 ### Prerequisites
 
 - Docker + Docker Compose
-- Ollama installed locally with `deepseek-r1:8b` pulled
-- A running OpenStack deployment with Prometheus + Alertmanager configured
-- Python 3.11+
 
-### 1. Clone and configure
+This milestone runs MongoDB and a FastAPI ingestion backend. It does not include the
+collector, parsing, ChromaDB, embeddings, graph logic, MSI integration, Ollama, or any
+DevStack changes.
+
+### 1. Configure
 
 ```bash
-git clone https://github.com/yourname/openstack-rca-copilot
-cd openstack-rca-copilot
 cp .env.example .env
-# edit .env with your OpenStack log paths and Ollama endpoint
+# edit .env and replace MONGO_INITDB_ROOT_PASSWORD
 ```
 
-### 2. Start the stack
+### 2. Validate Docker Compose
 
 ```bash
-docker-compose up -d
+docker compose config
 ```
 
-This starts MongoDB, ChromaDB, and the FastAPI service. Ollama runs separately on the host.
-
-### 3. Point it at your logs
-
-In `.env`, set the paths to your OpenStack log files:
-
-```env
-OPENSTACK_LOG_PATHS=/var/log/nova/nova-compute.log,/var/log/neutron/server.log
-LOG_WATCH_INTERVAL_SECONDS=5
-```
-
-### 4. Configure Alertmanager
-
-Add this receiver to your `alertmanager.yml`:
-
-```yaml
-receivers:
-  - name: rca-copilot
-    webhook_configs:
-      - url: http://localhost:8000/webhook/alert
-```
-
-### 5. Verify it's running
+### 3. Start
 
 ```bash
-curl http://localhost:8000/incidents
-# returns [] on a fresh install, populates as incidents are detected
+docker compose up -d --build
 ```
 
-### 6. Build the knowledge base
+MongoDB is bound to `127.0.0.1:27017`. The backend is bound to `127.0.0.1:8000`,
+waits for MongoDB to become healthy, and stores raw records in
+`rca_copilot.raw_logs`.
 
-Drop any existing OpenStack incident reports, resolved bug notes, or log files into
-`knowledge_base/` and run the ingestion script:
+### 4. Stop
 
 ```bash
-python -m ingestion.bootstrap --path knowledge_base/
+docker compose stop
 ```
 
-This parses, structures, and indexes everything into MongoDB + ChromaDB so the system
-has prior knowledge before it ever sees a live incident.
+To stop and remove containers while keeping the named MongoDB volume:
+
+```bash
+docker compose down
+```
+
+### 5. Check status
+
+```bash
+docker compose ps
+```
+
+### 6. Check health
+
+```bash
+curl http://127.0.0.1:8000/health
+docker inspect --format='{{json .State.Health}}' rca-copilot-mongodb
+docker inspect --format='{{json .State.Health}}' rca-copilot-backend
+```
+
+Or ping MongoDB directly through the container:
+
+```bash
+docker compose exec mongodb mongosh --quiet --eval 'db.adminCommand("ping")'
+```
+
+### 7. Ingest raw logs
+
+`POST /logs/batch` stores raw journal records without parsing or modifying the
+`message` field. The backend appends `received_at` in UTC and ignores duplicate
+records with the same `boot_id` and `journal_cursor`.
+
+```bash
+curl -s http://127.0.0.1:8000/logs/batch \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "records": [
+      {
+        "boot_id": "boot-123",
+        "journal_cursor": "s=cursor-001",
+        "message": "nova-api raw log message",
+        "unit": "nova-api.service"
+      }
+    ]
+  }'
+```
+
+Example response:
+
+```json
+{
+  "received_count": 1,
+  "inserted_count": 1,
+  "duplicate_count": 0
+}
+```
+
+### 8. Run tests
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest
+```
+
+### 9. Back up MongoDB
+
+```bash
+mkdir -p backups
+docker compose exec mongodb mongodump \
+  --username "$MONGO_INITDB_ROOT_USERNAME" \
+  --password "$MONGO_INITDB_ROOT_PASSWORD" \
+  --authenticationDatabase admin \
+  --archive > backups/mongodb-$(date +%Y%m%d-%H%M%S).archive
+```
+
+Run `set -a; source .env; set +a` first if the MongoDB credentials are not already
+exported in your shell.
+
+---
+
+## Milestone 3: Host Journald Collector
+
+This milestone adds only the host-level journald collector. It runs on the Ubuntu host,
+outside Docker, reads journald with `journalctl -f -o json --show-cursor`, batches raw
+records, and posts them to `http://127.0.0.1:8000/logs/batch`.
+
+The collector monitors these systemd units by default:
+
+- `devstack@keystone.service`
+- `devstack@n-api.service`
+- `devstack@n-sch.service`
+- `devstack@n-cond-cell1.service`
+- `devstack@n-cpu.service`
+- `devstack@neutron-api.service`
+- `devstack@placement-api.service`
+
+It persists the last backend-acknowledged journald cursor in a local state file and
+uses `--after-cursor` on restart. The cursor is saved only after the backend returns a
+successful response, so retries are at-least-once and backend duplicate handling remains
+safe.
+
+### Manual run
+
+Install the collector dependencies on the host:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r collector/requirements.txt
+```
+
+Start MongoDB and the backend first:
+
+```bash
+docker compose up -d --build
+```
+
+Run the collector:
+
+```bash
+RCA_COLLECTOR_STATE_FILE=$HOME/.local/state/rca-copilot/journal.cursor \
+python -m collector.runner
+```
+
+For manual host runs, create the user-owned state directory first:
+
+```bash
+install -d -m 0755 "$HOME/.local/state/rca-copilot"
+RCA_COLLECTOR_STATE_FILE=$HOME/.local/state/rca-copilot/journal.cursor \
+python -m collector.runner
+```
+
+The user running the collector must be able to read journald for the DevStack services.
+On Ubuntu this usually means running as root or adding the user to the `systemd-journal`
+group and starting a new login session. The systemd unit runs as `stack` and grants
+`systemd-journal` as a supplementary group.
+
+### Systemd installation
+
+A service template is provided at `systemd/rca-copilot-journald-collector.service`.
+It is not installed, enabled, or started by this repository.
+
+Validate the unit before installing it:
+
+```bash
+systemd-analyze verify systemd/rca-copilot-journald-collector.service
+```
+
+Install the unit without enabling or starting it:
+
+```bash
+sudo install -d -m 0755 /etc/rca-copilot
+sudo install -m 0644 systemd/rca-copilot-journald-collector.service /etc/systemd/system/
+sudo tee /etc/rca-copilot/journald-collector.env >/dev/null <<'EOF'
+RCA_COLLECTOR_BACKEND_URL=http://127.0.0.1:8000/logs/batch
+RCA_COLLECTOR_BATCH_SIZE=50
+RCA_COLLECTOR_FLUSH_INTERVAL_SECONDS=2
+EOF
+sudo systemctl daemon-reload
+```
+
+Start the service only when ready:
+
+```bash
+sudo systemctl start rca-copilot-journald-collector.service
+```
+
+Check status:
+
+```bash
+sudo systemctl status rca-copilot-journald-collector.service
+```
+
+Follow service logs:
+
+```bash
+sudo journalctl -u rca-copilot-journald-collector.service -f
+```
+
+Restart after changing configuration:
+
+```bash
+sudo systemctl restart rca-copilot-journald-collector.service
+```
+
+Uninstall the service and remove its systemd-managed state directory:
+
+```bash
+sudo systemctl stop rca-copilot-journald-collector.service
+sudo systemctl disable rca-copilot-journald-collector.service
+sudo rm -f /etc/systemd/system/rca-copilot-journald-collector.service
+sudo rm -f /etc/rca-copilot/journald-collector.env
+sudo rm -rf /var/lib/rca-copilot-journald-collector
+sudo systemctl daemon-reload
+sudo systemctl reset-failed rca-copilot-journald-collector.service
+```
+
+### Collector configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RCA_COLLECTOR_BACKEND_URL` | Backend batch ingestion endpoint | `http://127.0.0.1:8000/logs/batch` |
+| `RCA_COLLECTOR_STATE_FILE` | Local cursor state file | `/var/lib/rca-copilot-journald-collector/journal.cursor` |
+| `RCA_COLLECTOR_BATCH_SIZE` | Records per POST batch | `50` |
+| `RCA_COLLECTOR_FLUSH_INTERVAL_SECONDS` | Maximum seconds before flushing a partial batch | `2` |
+| `RCA_COLLECTOR_REQUEST_TIMEOUT_SECONDS` | HTTP request timeout | `5` |
+| `RCA_COLLECTOR_RETRY_MAX_ATTEMPTS` | Attempts per failed POST before returning to the run loop | `5` |
+| `RCA_COLLECTOR_RETRY_INITIAL_DELAY_SECONDS` | First retry delay | `0.5` |
+| `RCA_COLLECTOR_RETRY_MAX_DELAY_SECONDS` | Maximum retry delay | `8` |
+| `RCA_COLLECTOR_JOURNALCTL_PATH` | `journalctl` executable path | `journalctl` |
+| `RCA_COLLECTOR_UNITS` | Comma-separated systemd unit override | DevStack units listed above |
+
+---
+
+## Milestone 4: Parsing Pipeline
+
+This milestone adds only the parser worker. It runs as a Docker Compose service, reads
+unprocessed documents from MongoDB `raw_logs`, never modifies or deletes raw documents,
+and writes parsed documents to `parsed_logs`.
+
+The parser creates a unique index on `source_log_id` and `parser_version`, then uses
+idempotent upserts so reruns and duplicate polling do not create duplicate parsed rows.
+Parse failures are written with `parse_status=failure` and `parse_error` instead of
+being dropped.
+
+### Start
+
+```bash
+docker compose up -d --build mongodb backend parser-worker
+```
+
+### Status
+
+```bash
+docker compose ps
+docker inspect --format='{{json .State.Health}}' rca-copilot-parser-worker
+```
+
+### Logs
+
+```bash
+docker compose logs -f parser-worker
+```
+
+### Restart
+
+```bash
+docker compose restart parser-worker
+```
+
+### Verification
+
+Validate Compose:
+
+```bash
+docker compose config
+```
+
+Insert a raw log through the existing backend:
+
+```bash
+curl -s http://127.0.0.1:8000/logs/batch \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "records": [
+      {
+        "boot_id": "boot-parser-demo",
+        "journal_cursor": "cursor-parser-demo",
+        "service": "devstack@n-api.service",
+        "priority": "3",
+        "timestamp": "2026-07-05T10:00:00Z",
+        "host": "compute-01",
+        "message": "2026-07-05 10:00:00.000 1234 ERROR nova.api.openstack [req-11111111-1111-4111-8111-111111111111] instance 22222222-2222-4222-8222-222222222222 failed"
+      }
+    ]
+  }'
+```
+
+Confirm the parsed document exists and that the request UUID was not copied into
+`resource_ids`:
+
+```bash
+docker compose exec mongodb mongosh --quiet \
+  "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@localhost:27017/$MONGO_INITDB_DATABASE?authSource=admin" \
+  --eval 'db.parsed_logs.findOne({request_id:"req-11111111-1111-4111-8111-111111111111"},{_id:0,request_id:1,resource_ids:1,parse_status:1,host:1})'
+```
+
+---
+
+## Milestone 6: Incident Detection and Subgraphs
+
+This milestone adds only the incident worker. It consumes successful `parsed_logs`,
+detects deterministic incident seeds, traverses existing `event_edges`, and writes
+candidate incident subgraphs to `incidents`.
+
+Start the pipeline through incident creation:
+
+```bash
+docker compose up -d --build mongodb backend parser-worker correlation-worker incident-worker
+```
+
+Check worker health:
+
+```bash
+docker compose ps
+docker inspect --format='{{json .State.Health}}' rca-copilot-incident-worker
+```
+
+Follow incident worker logs:
+
+```bash
+docker compose logs -f incident-worker
+```
+
+Validate Compose:
+
+```bash
+docker compose config
+```
+
+Run tests:
+
+```bash
+pytest
+```
+
+Inspect incidents:
+
+```bash
+docker compose exec mongodb mongosh --quiet \
+  "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@localhost:27017/$MONGO_INITDB_DATABASE?authSource=admin" \
+  --eval 'db.incidents.find({}, {_id:0, incident_id:1, seed_event_id:1, seed_reason:1, event_ids:1, edge_ids:1}).limit(5)'
+```
+
+Run tests:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest
+```
+
+### Parser configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MONGO_PARSED_LOGS_COLLECTION` | Parsed log collection name | `parsed_logs` |
+| `PARSER_VERSION` | Parser version used in the unique upsert key | `parser-v1` |
+| `PARSER_BATCH_SIZE` | Raw documents processed per poll | `100` |
+| `PARSER_POLL_INTERVAL_SECONDS` | Seconds between polling cycles | `2` |
 
 ---
 
@@ -322,17 +756,18 @@ has prior knowledge before it ever sees a live incident.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MONGO_URI` | MongoDB connection string | `mongodb://localhost:27017` |
-| `CHROMA_HOST` | ChromaDB host | `localhost` |
-| `CHROMA_PORT` | ChromaDB port | `8001` |
-| `OLLAMA_BASE_URL` | Ollama API base URL | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Model name to use | `deepseek-r1:8b` |
-| `OPENSTACK_LOG_PATHS` | Comma-separated log file paths | required |
-| `LOG_WATCH_INTERVAL_SECONDS` | Polling interval | `5` |
-| `TIER1_CONFIDENCE_THRESHOLD` | Min score to stop at Tier 1 | `0.85` |
-| `TIER2_CONFIDENCE_THRESHOLD` | Min score to stop at Tier 2 | `0.70` |
-| `INCIDENT_WINDOW_MINUTES` | Look-back window for grouping | `30` |
-| `MLFLOW_TRACKING_URI` | MLflow server URI | `http://localhost:5000` |
+| `MONGO_BIND_HOST` | Host interface for MongoDB port binding | `127.0.0.1` |
+| `MONGO_PORT` | Host port for MongoDB | `27017` |
+| `MONGO_INITDB_ROOT_USERNAME` | MongoDB root username created on first start | `rca_admin` |
+| `MONGO_INITDB_ROOT_PASSWORD` | MongoDB root password created on first start | `change-me` |
+| `MONGO_INITDB_DATABASE` | Initial application database | `rca_copilot` |
+| `MONGO_URI` | Application connection string for local backend tests/runs | `mongodb://rca_admin:change-me@127.0.0.1:27017/rca_copilot?authSource=admin` |
+| `MONGO_DATABASE` | Backend database name | `rca_copilot` |
+| `MONGO_RAW_LOGS_COLLECTION` | Raw log collection name | `raw_logs` |
+| `MONGO_PARSED_LOGS_COLLECTION` | Parsed log collection name | `parsed_logs` |
+| `PARSER_VERSION` | Parser version used in parsed log idempotency key | `parser-v1` |
+| `PARSER_BATCH_SIZE` | Parser documents per batch | `100` |
+| `PARSER_POLL_INTERVAL_SECONDS` | Parser polling interval | `2` |
 
 ---
 
@@ -340,12 +775,8 @@ has prior knowledge before it ever sees a live incident.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/webhook/alert` | Alertmanager webhook entry point |
-| `GET` | `/incidents` | List all incidents, filterable by component/severity |
-| `GET` | `/incidents/{id}` | Full incident detail + RCA |
-| `POST` | `/incidents/{id}/chat` | Send a follow-up message, get a grounded reply |
-| `GET` | `/incidents/{id}/graph` | Returns compilable TikZ LaTeX causal diagram |
 | `GET` | `/health` | Service health check |
+| `POST` | `/logs/batch` | Store raw journal records in MongoDB |
 
 ---
 

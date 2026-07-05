@@ -1,0 +1,22 @@
+[Unit]
+Description=RCA Copilot host journald collector
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/rca-copilot/journald-collector.env
+Environment=RCA_COLLECTOR_STATE_FILE=/var/lib/rca-copilot-journald-collector/journal.cursor
+User=stack
+Group=stack
+SupplementaryGroups=systemd-journal
+WorkingDirectory=/opt/stack/RCA_copilot
+ExecStart=/opt/stack/RCA_copilot/.venv/bin/python -m collector.runner
+StateDirectory=rca-copilot-journald-collector
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
