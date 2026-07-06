@@ -1,13 +1,63 @@
+# Local configuration and secrets
 .env
+.env.*
+!.env.example
 
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
 .venv/
 venv/
+env/
+ENV/
+pip-wheel-metadata/
+*.egg-info/
+build/
+dist/
 
+# Runtime and local data
 backups/
 *.dump
 *.archive
+*.log
+*.pid
+*.sqlite
+*.sqlite3
 
+# Docker / Compose local overrides
+docker-compose.override.yml
+
+# LaTeX generated artifacts
+latex/build/
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+
+# OS and editor noise
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
