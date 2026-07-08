@@ -1,0 +1,5 @@
+PANEL = "overview"
+PANEL_DASHBOARD = "rca_copilot"
+PANEL_GROUP = "rca"
+DEFAULT_PANEL = "overview"
+ADD_PANEL = "rca_copilot_horizon.dashboards.rca_copilot.overview.panel.Overview"

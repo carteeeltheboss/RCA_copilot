@@ -51,8 +51,9 @@ Implemented now:
 | Enrichment worker | Implemented |
 | Docker Compose runtime | Implemented |
 | Worker health checks | Implemented |
+| Provider-agnostic AI backend configuration | Implemented |
 | Unit tests | Implemented |
-| RAG retrieval, embeddings, local LLM, chat UI | Planned |
+| Production AI generation, embeddings, RAG retrieval, chat UI | Planned |
 
 ## Architecture
 
@@ -82,6 +83,18 @@ journald
   -> MongoDB incidents
   -> enrichment-worker
   -> enriched incidents
+```
+
+AI providers are configured behind the FastAPI backend. The browser and Horizon
+plugin never call Ollama, OpenAI-compatible endpoints, Gemini-compatible
+endpoints, Claude-compatible endpoints, custom HTTP providers, MongoDB, or a
+vector store directly.
+
+```text
+Horizon UI
+  -> RCA FastAPI backend
+  -> active provider adapter
+  -> external or local AI provider
 ```
 
 ## Repository Layout
@@ -118,6 +131,86 @@ journald
 include `boot_id`, `journal_cursor`, and `message`; additional journald fields
 are accepted and preserved. The backend adds `received_at` and de-duplicates by
 `boot_id` plus `journal_cursor`.
+
+The versioned RCA API also exposes provider administration under
+`/api/v1/providers`. Those endpoints require `X-RCA-Service-Token` with the
+server-side `RCA_INTERNAL_SERVICE_TOKEN`; the token is intended for Horizon
+server-side calls and must not be sent to browser JavaScript.
+
+### Provider Framework
+
+Provider configuration is stored in MongoDB `provider_configs`, with
+non-secret lifecycle history in `config_audit_log`. The backend supports these
+provider kinds:
+
+- `ollama`
+- `openai_compatible`
+- `gemini`
+- `anthropic`
+- `custom_http`
+- `chroma` as a vector store placeholder only
+
+Provider types are `llm`, `embedding`, `reranker`, and `vector_store`.
+Adapters declare capabilities from `llm`, `embedding`, `reranker`, `vision`,
+`streaming`, and `model_listing`. Unsupported operations return a structured
+unavailable result instead of crashing. Production `generate`, `embed`, and
+`rerank` calls are intentionally left as extension points; the current code
+implements validation, connection testing, simple model listing where practical,
+activation, rollback, audit, and health state.
+
+Provider lifecycle:
+
+```text
+create draft -> validate locally -> save draft -> test connection -> activate
+```
+
+Only one provider can be active for each provider type. Activation requires a
+successful connection test unless the config is explicitly marked as an
+offline placeholder in `extra_config`. A failed activation does not disable the
+previous active provider. Rollback activates a previous version only if that
+version previously tested successfully.
+
+Secrets are write-only. API keys are encrypted with authenticated encryption
+from `cryptography.fernet` using `RCA_PROVIDER_MASTER_KEY`, are never returned
+by GET APIs, and are masked in Horizon. If the master key is missing, provider
+configs without secrets still work, saving a secret fails clearly, and the
+deterministic RCA pipeline remains healthy.
+
+Provider URL safety is enforced server-side: only `http` and `https` are
+allowed, embedded credentials are rejected, trailing slashes are normalized,
+redirects are disabled, requests have timeouts and response-size limits, and
+metadata, link-local, loopback, private, or reserved addresses are blocked
+unless explicitly allowed.
+
+Provider environment variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `RCA_INTERNAL_SERVICE_TOKEN` | Internal server-side token for Horizon/provider API calls |
+| `RCA_PROVIDER_MASTER_KEY` | Master key used to encrypt provider API keys |
+| `RCA_PROVIDER_ALLOWED_CIDRS` | Comma-separated CIDRs allowed for provider URLs, such as a Tailscale range |
+| `RCA_PROVIDER_ALLOWED_HOSTS` | Comma-separated hostnames exempt from DNS/IP blocking |
+| `RCA_PROVIDER_ALLOW_LOCALHOST` | Allows localhost provider URLs when set to true |
+| `RCA_PROVIDER_REQUEST_TIMEOUT_SECONDS` | Default provider request timeout |
+
+To add Ollama later, create an `ollama` provider with a backend-reachable base
+URL and model name, test it, then activate it. To add an OpenAI-compatible
+endpoint later, use `openai_compatible` and the endpoint's `/v1` base URL. To
+add Gemini later, use `gemini` and save the API key through the provider form.
+To add Claude later, use `anthropic` and save the API key through the provider
+form. In all cases the backend owns validation, secret storage, connection
+tests, activation, rollback, health, and external calls.
+
+If no valid active provider exists, AI explanation and similar-incident
+endpoints return HTTP 503 with:
+
+```json
+{"status": "unavailable", "reason": "No active LLM provider configured"}
+```
+
+They do not fake AI answers. Collector, ingestion, parser, correlation,
+incident detection, and deterministic enrichment do not depend on provider
+health and continue without AI.
 
 ### Collector
 
@@ -464,8 +557,8 @@ set +a
 Planned next layers:
 
 - incident retrieval over enriched incident history;
-- embeddings and ChromaDB for semantic search;
-- local LLM generation through Ollama or another private inference server;
+- embeddings and optional vector-store-backed semantic search;
+- provider-backed LLM generation through local or external adapters;
 - operator chat over frozen incident context;
 - graph visualization and RCA explanation UI;
 - evaluation harness for retrieval quality and RCA consistency.

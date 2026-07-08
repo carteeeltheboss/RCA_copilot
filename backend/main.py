@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI
 from backend.database import get_repository, lifespan
 from backend.models import BatchIngestRequest, BatchIngestResponse
 from backend.repository import RawLogRepository
+from backend.api_v1 import router as api_v1_router
 
 
 def create_app(
@@ -32,6 +33,8 @@ def create_app(
             inserted_count=result.inserted_count,
             duplicate_count=result.duplicate_count,
         )
+
+    app.include_router(api_v1_router)
 
     return app
 

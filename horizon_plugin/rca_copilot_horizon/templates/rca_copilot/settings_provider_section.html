@@ -1,0 +1,43 @@
+<div class="rca-provider-grid">
+{% for provider in providers %}
+  {% if provider.provider_type == provider_type %}
+  <div class="panel panel-default rca-provider-card">
+    <div class="panel-heading"><strong>{{ provider.display_name }}</strong> <span class="label label-{{ provider.status }}">{{ provider.status }}</span></div>
+    <div class="panel-body">
+      <dl class="dl-horizontal">
+        <dt>ID</dt><dd><code>{{ provider.provider_id }}</code></dd>
+        <dt>Kind</dt><dd>{{ provider.provider_kind }}</dd>
+        <dt>Base URL</dt><dd>{{ provider.base_url|default:"Not configured" }}</dd>
+        <dt>Model</dt><dd>{{ provider.model_name|default:"-" }}</dd>
+        <dt>Capabilities</dt><dd>{{ provider.capabilities|join:", "|default:"-" }}</dd>
+        <dt>Enabled</dt><dd>{{ provider.enabled|yesno:"enabled,disabled" }}</dd>
+        <dt>Active</dt><dd>{{ provider.active|yesno:"active,inactive" }}</dd>
+        <dt>Status</dt><dd>{{ provider.status }}</dd>
+        <dt>Health</dt><dd>{{ provider.last_test_status|default:"unconfigured" }}</dd>
+        <dt>Last tested</dt><dd>{{ provider.last_tested_at|default:"-" }}</dd>
+        <dt>Latency</dt><dd>{{ provider.last_test_latency_ms|default:"-" }}</dd>
+        <dt>Version</dt><dd>{{ provider.config_version }}</dd>
+        <dt>Secret</dt><dd>{{ provider.api_key_masked|default:"not set" }}</dd>
+      </dl>
+      {% if provider.last_test_error %}<div class="alert alert-warning">{{ provider.last_test_error }}</div>{% endif %}
+      <form method="post" class="btn-group rca-provider-actions">{% csrf_token %}
+        <input type="hidden" name="provider_id" value="{{ provider.provider_id }}">
+        <button class="btn btn-default btn-sm" name="action" value="test">Test connection</button>
+        <button class="btn btn-success btn-sm" name="action" value="activate">Activate</button>
+        <button class="btn btn-warning btn-sm" name="action" value="disable">Disable</button>
+        <button class="btn btn-danger btn-sm" name="action" value="delete">Delete unused draft</button>
+      </form>
+      <form method="post" class="form-inline rca-rollback">{% csrf_token %}
+        <input type="hidden" name="provider_id" value="{{ provider.provider_id }}">
+        <input class="form-control input-sm" name="config_version" placeholder="version">
+        <button class="btn btn-default btn-sm" name="action" value="rollback">Roll back</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}
+{% if not providers %}
+  <div class="rca-empty">No AI provider configured. Deterministic RCA remains available.</div>
+{% endif %}
+<div class="alert alert-info">AI provider unavailable. Ingestion, correlation, incident detection, and enrichment are unaffected.</div>
+</div>

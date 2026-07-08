@@ -57,8 +57,15 @@
   artifact/.style={draw=Slate,thick,rounded corners=3pt,fill=white,align=left,text=DeepNavy,font=\scriptsize,inner sep=5pt},
   future/.style={draw=Slate,thick,dotted,rounded corners=4pt,fill=white,align=center,text=Slate,font=\small,minimum height=.72cm,inner xsep=6pt},
   event/.style={circle,draw=Purple,very thick,fill=white,text=DeepNavy,font=\small,align=center,minimum size=.72cm},
+  eventInfo/.style={circle,draw=MediumBlue,very thick,fill=SoftBlue,text=DeepNavy,font=\small,align=center,minimum size=.76cm},
+  eventWarn/.style={circle,draw=Amber,very thick,fill=SoftAmber,text=DeepNavy,font=\small,align=center,minimum size=.76cm},
+  eventErr/.style={circle,draw=MutedRed,very thick,fill=SoftRed,text=DeepNavy,font=\small,align=center,minimum size=.76cm},
+  eventDebug/.style={circle,draw=Slate,very thick,fill=SoftSlate,text=DeepNavy,font=\small,align=center,minimum size=.76cm},
   seed/.style={circle,draw=MutedRed,very thick,fill=SoftRed,text=DeepNavy,font=\bfseries\small,align=center,minimum size=.82cm},
   excluded/.style={circle,draw=Slate,thick,fill=SoftSlate,text=Slate,font=\small,align=center,minimum size=.68cm},
+  pipelinebox/.style={draw=DeepNavy,thick,rounded corners=5pt,fill=white,align=center,text=DeepNavy,font=\small,minimum height=.82cm,inner xsep=6pt},
+  miniartifact/.style={draw=Slate,thick,rounded corners=3pt,fill=white,align=left,text=DeepNavy,font=\small,inner sep=4pt},
+  bandlabel/.style={font=\bfseries\small,text=DeepNavy,align=right},
   logflow/.style={-{Latex[length=2.6mm]},very thick,draw=MediumBlue},
   dbread/.style={-{Latex[length=2.4mm]},thick,dashed,draw=Slate},
   dbwrite/.style={-{Latex[length=2.6mm]},very thick,draw=Slate},
@@ -94,6 +101,57 @@
   \titlepage
 \end{frame}
 
+\begin{frame}{Table des matières (1/4)}
+\small
+\begin{enumerate}
+  \item Problem: OpenStack failures are hard to debug
+  \item Goal: turn logs into investigation evidence
+  \item Current deployment topology
+  \item Current implemented pipeline
+  \item Evidence lineage and transformations
+  \item Log ingestion: journald to MongoDB
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Table des matières (2/4)}
+\small
+\begin{enumerate}
+  \setcounter{enumi}{6}
+  \item Raw evidence storage
+  \item Parsing: raw logs to structured events
+  \item Graph correlation: events to relationships
+  \item Graph safety controls
+  \item Incident detection: suspicious seed events
+  \item Incident construction: bounded subgraphs
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Table des matières (3/4)}
+\small
+\begin{enumerate}
+  \setcounter{enumi}{12}
+  \item Worker reliability
+  \item Enrichment: deterministic evidence package
+  \item MongoDB collection architecture
+  \item Failure containment
+  \item Current versus future boundary
+  \item Future AI/RAG layer
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Table des matières (4/4)}
+\small
+\begin{enumerate}
+  \setcounter{enumi}{18}
+  \item Future local provider node
+  \item Future grounded AI workflow
+  \item Horizon dashboard and operator workflow
+  \item Operator investigation journey
+  \item Final architecture
+  \item Roadmap and next steps
+\end{enumerate}
+\end{frame}
+
 \begin{frame}{Semantic Visual Language}
 \centering
 \begin{tabular}{>{\centering\arraybackslash}m{1.2cm}m{3.1cm}m{6.8cm}}
@@ -115,7 +173,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 1: Context and Problem}
+\section{1. Problem: OpenStack failures are hard to debug}
 
 \begin{frame}{OpenStack Service Ecosystem}
 \centering
@@ -230,7 +288,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 2: Project Vision}
+\section{2. Goal: turn logs into investigation evidence}
 
 \begin{frame}{Vision Architecture}
 \centering
@@ -242,8 +300,8 @@
   \node[db] (mongo) at (6,3.05) {MongoDB};
   \node[graphlogic] (graph) at (8.5,3.2) {Graph};
   \node[transform] (evidence) at (10.6,3.2) {Evidence};
-  \node[future] (rag) at (4.2,1.45) {Chroma/RAG};
-  \node[future] (llm) at (7.2,1.45) {Local LLM};
+  \node[future] (rag) at (4.2,1.45) {Vector/RAG};
+  \node[future] (llm) at (7.2,1.45) {AI provider};
   \node[future] (ui) at (10,1.45) {Horizon UI};
   \draw[logflow] (os) -- (collector);
   \draw[dbwrite] (collector) -- (mongo);
@@ -272,6 +330,35 @@
 \end{tikzpicture}
 \end{frame}
 
+\begin{frame}{Project Storyline}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[smalltitle] at (6,4.62) {Read the deck as one evidence pipeline};
+  \node[err,minimum width=1.55cm,minimum height=.82cm] at (1.05,3.55) {Problem};
+  \node[ok,minimum width=1.55cm,minimum height=.82cm] at (3.05,3.55) {Goal};
+  \node[svc,minimum width=1.55cm,minimum height=.82cm] at (5.05,3.55) {Current\\pipeline};
+  \node[svc,minimum width=1.55cm,minimum height=.82cm] at (7.05,3.55) {Ingestion};
+  \node[transform,minimum width=1.55cm,minimum height=.82cm] at (9.05,3.55) {Parsing};
+  \node[graphlogic,minimum width=1.55cm,minimum height=.82cm] at (11.05,3.55) {Graph\\correlation};
+  \node[err,minimum width=1.55cm,minimum height=.82cm] at (2.05,2.05) {Seed\\detection};
+  \node[graphlogic,minimum width=1.55cm,minimum height=.82cm] at (4.25,2.05) {Bounded\\subgraph};
+  \node[transform,minimum width=1.55cm,minimum height=.82cm] at (6.45,2.05) {Enrichment};
+  \node[future,minimum width=1.55cm,minimum height=.82cm] at (8.65,2.05) {Horizon\\workflow};
+  \node[future,minimum width=1.55cm,minimum height=.82cm] at (10.85,2.05) {Future\\AI/RAG};
+  \draw[logflow] (1.82,3.55) -- (2.25,3.55);
+  \draw[logflow] (3.82,3.55) -- (4.25,3.55);
+  \draw[logflow] (5.82,3.55) -- (6.25,3.55);
+  \draw[logflow] (7.82,3.55) -- (8.25,3.55);
+  \draw[edgeReq] (9.82,3.55) -- (10.25,3.55);
+  \draw[edgeReq] (11.05,3.05) |- (2.05,2.55);
+  \draw[edgeReq] (2.85,2.05) -- (3.45,2.05);
+  \draw[edgeReq] (5.05,2.05) -- (5.65,2.05);
+  \draw[logflow] (7.25,2.05) -- (7.85,2.05);
+  \draw[futureline] (9.45,2.05) -- (10.05,2.05);
+  \node[note,text width=10.8cm] at (6,.7) {Each step shows the input, the transformation, the stored artifact, and the operator-facing result.};
+\end{tikzpicture}
+\end{frame}
+
 \begin{frame}{Implemented vs Future System}
 \centering
 \begin{tikzpicture}[x=1cm,y=1cm]
@@ -286,7 +373,7 @@
   \node[smalltitle,text=Slate] at (9.2,3.85) {Future};
   \node[future] at (7.6,3.0) {ChromaDB};
   \node[future] at (9.3,3.0) {MSI API};
-  \node[future] at (11.0,3.0) {Ollama};
+  \node[future] at (11.0,3.0) {AI provider};
   \node[future] at (8.4,1.65) {reranker};
   \node[future] at (10.2,1.65) {Horizon};
 \end{tikzpicture}
@@ -307,11 +394,11 @@
   \draw[dbread] (inc) -- (ev);
   \draw[futureline] (g) -- (ai);
   \draw[futureline] (ev) -- (ai);
-  \node[note,text width=8cm] at (6,.55) {The browser never calls Ollama directly; backend mediates future inference.};
+  \node[note,text width=8cm] at (6,.55) {The browser never calls AI providers directly; backend mediates future inference.};
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 3: Physical Deployment Topology}
+\section{3. Current deployment topology}
 
 \begin{frame}{Two-Machine Physical Topology}
 \centering
@@ -328,7 +415,7 @@
   \node[smalltitle,text=Slate] at (9.7,4.15) {Future MSI Ubuntu GPU};
   \node[future] at (9.7,3.25) {Embedding API};
   \node[future] at (9.7,2.3) {Reranker};
-  \node[future] at (9.7,1.35) {Ollama + local LLM};
+  \node[future] at (9.7,1.35) {local AI provider};
   \draw[futureline] (mac) -- node[above,note] {Tailscale private network} (msi);
 \end{tikzpicture}
 \end{frame}
@@ -374,7 +461,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 4: Runtime Service Architecture}
+\section{4. Current implemented pipeline}
 
 \begin{frame}{Runtime Dependency Graph}
 \centering
@@ -417,7 +504,7 @@
   \node[future] (chroma) at (6.9,3.45) {ChromaDB\\on MacBook};
   \node[future] (emb) at (4.2,1.8) {MSI embedding API};
   \node[future] (rerank) at (6.9,1.8) {reranker};
-  \node[future] (ollama) at (9.4,1.8) {Ollama};
+  \node[future] (ollama) at (9.4,1.8) {AI provider};
   \node[future] (h) at (9.4,3.45) {Horizon plugin};
   \draw[futureline] (inc) -- (filter);
   \draw[futureline] (filter) -- (chroma);
@@ -430,7 +517,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 5: End-to-End Data Lineage}
+\section{5. Evidence lineage and transformations}
 
 \begin{frame}{Data Lineage Map}
 \centering
@@ -452,6 +539,124 @@
 \end{tikzpicture}
 \end{frame}
 
+\begin{frame}{Parsing and Graph Relationships}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[bandlabel] at (.85,5.05) {Storage};
+  \node[db,minimum width=1.55cm] (rawdb) at (2.15,5.05) {raw\_logs};
+  \node[db,minimum width=1.72cm] (parseddb) at (5.05,5.05) {parsed\_logs};
+  \node[db,minimum width=1.72cm] (edgedb) at (7.95,5.05) {event\_edges};
+  \node[db,minimum width=1.55cm] (incdb) at (10.85,5.05) {incidents};
+  \draw[dbwrite] (rawdb) -- (parseddb);
+  \draw[dbwrite] (parseddb) -- (edgedb);
+  \draw[dbwrite] (edgedb) -- (incdb);
+
+  \node[bandlabel] at (.85,3.62) {Workers};
+  \node[worker,minimum width=1.65cm] (collector) at (2.15,3.62) {collector};
+  \node[worker,minimum width=1.65cm] (parser) at (5.05,3.62) {parser};
+  \node[graphlogic,minimum width=1.85cm] (corr) at (7.95,3.62) {correlation};
+  \node[err,minimum width=1.85cm] (incident) at (10.85,3.62) {incident};
+  \draw[logflow] (collector) -- (parser);
+  \draw[edgeReq] (parser) -- (corr);
+  \draw[edgeReq] (corr) -- (incident);
+
+  \node[bandlabel] at (.85,2.18) {Meaning};
+  \node[pipelinebox,minimum width=2.35cm] (raw) at (2.15,2.18) {unstructured\\journal log};
+  \node[pipelinebox,minimum width=2.35cm] (parsed) at (5.05,2.18) {structured\\event node};
+  \node[pipelinebox,minimum width=2.35cm] (edges) at (7.95,2.18) {relationship\\graph};
+  \node[pipelinebox,minimum width=2.35cm] (package) at (10.85,2.18) {bounded evidence\\subgraph};
+  \draw[logflow] (raw) -- (parsed);
+  \draw[edgeReq] (parsed) -- (edges);
+  \draw[edgeReq] (edges) -- (package);
+
+  \draw[dbread] (rawdb) -- (collector);
+  \draw[dbread] (parseddb) -- (parser);
+  \draw[dbread] (edgedb) -- (corr);
+  \draw[dbread] (incdb) -- (incident);
+  \draw[dbwrite] (collector) -- (raw);
+  \draw[dbwrite] (parser) -- (parsed);
+  \draw[dbwrite] (corr) -- (edges);
+  \draw[dbwrite] (incident) -- (package);
+
+  \node[miniartifact,minimum width=3.25cm] (example) at (2.25,.84) {journalctl -o json\\ERROR nova.compute\\Build failed: instance 48f...};
+  \node[miniartifact,minimum width=3.30cm] (fields) at (6.20,.84) {level = ERROR\\service = nova-compute\\resource = instance 48f...};
+  \node[eventErr] (n1) at (9.70,.84) {E};
+  \node[miniartifact,minimum width=1.85cm] (version) at (11.15,.84) {parser-v1\\source raw ID};
+  \draw[logflow] (example.east) -- (fields.west);
+  \draw[edgeReq] (fields.east) -- (n1.west);
+  \draw[dbwrite] (n1.east) -- (version.west);
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Correlation: Structured Events to Graph Edges}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[miniartifact,minimum width=3.25cm] (fields) at (1.95,4.35) {parsed event fields\\level, service, module\\request ID, resource IDs\\function/file/line\\source raw log};
+  \node[eventInfo] (a) at (4.70,4.35) {A};
+  \node[eventWarn] (b) at (6.05,4.35) {B};
+  \node[eventErr] (c) at (7.40,4.35) {C};
+  \node[eventDebug] (d) at (8.75,4.35) {D};
+  \node[db] (edgedb2) at (11.00,4.35) {event\_edges};
+  \draw[edgeReq] (fields) -- (a);
+  \draw[edgeReq] (a) -- (b);
+  \draw[edgeRes] (b) -- (c);
+  \draw[edgeReq] (c) -- (d);
+  \draw[dbwrite] (d) -- (edgedb2);
+  \node[graphlogic,minimum width=2.45cm,minimum height=.62cm] at (5.35,3.45) {same request\_id\\confidence 1.0};
+  \node[transform,minimum width=2.45cm,minimum height=.62cm] at (8.05,3.45) {shared resource\_id\\confidence 0.9};
+
+  \node[zone,minimum width=5.45cm,minimum height=1.92cm] at (3.40,1.70) {};
+  \node[smalltitle] at (3.40,2.45) {Graph safety rules};
+  \node[ok,minimum width=2.12cm] at (2.05,1.90) {consecutive\\edges only};
+  \node[ok,minimum width=2.12cm] at (4.80,1.90) {max group\\size};
+  \node[ok,minimum width=2.12cm] at (2.05,1.05) {periodic groups\\skipped};
+  \node[ok,minimum width=2.12cm] at (4.80,1.05) {avoid O(n\textsuperscript{2})\\explosion};
+
+  \node[zone,minimum width=5.45cm,minimum height=1.92cm] at (9.40,1.70) {};
+  \node[smalltitle] at (9.40,2.45) {Relationship legend};
+  \node[eventInfo] at (7.55,1.95) {};
+  \node[note,anchor=west,text width=3.45cm] at (8.05,1.95) {Node = parsed event};
+  \draw[edgeReq] (7.25,1.38) -- (7.95,1.38);
+  \node[note,anchor=west,text width=3.45cm] at (8.05,1.38) {Purple = same request ID};
+  \draw[edgeRes] (7.25,.82) -- (7.95,.82);
+  \node[note,anchor=west,text width=3.45cm] at (8.05,.82) {Teal = shared resource ID};
+
+  \node[font=\bfseries\small,text=Amber,align=center] at (6.40,.22) {Edges are correlation, not causality};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Incident Evidence Package}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[smalltitle] at (6,5.02) {Seed event $\rightarrow$ bounded traversal over event\_edges $\rightarrow$ incident evidence subgraph};
+  \node[db] (parsed3) at (1.25,4.25) {parsed\\events};
+  \node[db] (edges3) at (1.25,2.85) {event\\edges};
+  \node[err,minimum width=1.75cm] (worker3) at (3.35,3.55) {incident\\worker};
+  \node[seed] (seed3) at (5.35,3.55) {S};
+  \node[eventErr] (e1) at (6.65,4.30) {1};
+  \node[eventWarn] (e2) at (7.95,3.55) {2};
+  \node[eventInfo] (e3) at (6.65,2.80) {3};
+  \node[excluded] (out) at (9.25,4.30) {out};
+  \node[db] (incidents3) at (11.05,3.55) {incidents};
+  \draw[dbread] (parsed3) -- (worker3);
+  \draw[dbread] (edges3) -- (worker3);
+  \draw[logflow] (worker3) -- (seed3);
+  \draw[edgeReq] (seed3) -- (e1);
+  \draw[edgeRes] (e1) -- (e2);
+  \draw[edgeReq] (seed3) -- (e3);
+  \draw[Slate,dotted,thick] (e1) -- (out);
+  \node[note] at (9.25,3.82) {outside bounds};
+  \draw[dbwrite] (e2) -- (incidents3);
+
+  \node[miniartifact,minimum width=3.05cm] (bounds3) at (3.45,1.35) {bounded traversal:\\max depth\\max events\\time window\\max 100 events for UI};
+  \node[transform,minimum width=2.30cm] (enrich3) at (6.95,1.35) {Deterministic\\enrichment};
+  \node[miniartifact,minimum width=3.15cm] (summary3) at (10.35,1.35) {timeline\\services, resources\\event and edge counts\\summary};
+  \draw[logflow] (bounds3.east) -- (enrich3.west);
+  \draw[logflow] (enrich3.east) -- (summary3.west);
+
+\end{tikzpicture}
+\end{frame}
+
 \begin{frame}{Artifact Responsibilities}
 \centering
 \begin{tikzpicture}[x=1cm,y=1cm]
@@ -468,7 +673,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 6: Journald Ingestion}
+\section{6. Log ingestion: journald to MongoDB}
 
 \begin{frame}{Monitored DevStack Units}
 \centering
@@ -553,7 +758,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 7: Raw Data Storage}
+\section{7. Raw evidence storage}
 
 \begin{frame}{raw\_logs Schema as Evidence Envelope}
 \centering
@@ -585,7 +790,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 8: Parsing Architecture}
+\section{8. Parsing: raw logs to structured events}
 
 \begin{frame}{Parser Worker Lifecycle}
 \centering
@@ -668,7 +873,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 9: Correlation as a Graph Problem}
+\section{9. Graph correlation: events to relationships}
 
 \begin{frame}{Event Nodes and Correlation Edges}
 \centering
@@ -743,7 +948,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 10: Graph Explosion Defect and Fix}
+\section{10. Graph safety controls}
 
 \begin{frame}{Before: Complete Pairwise Graph}
 \centering
@@ -800,7 +1005,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 11: Incident Seed Detection}
+\section{11. Incident detection: suspicious seed events}
 
 \begin{frame}{Incident Seed Rule Engine}
 \centering
@@ -847,7 +1052,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 12: Incident Subgraph Construction}
+\section{12. Incident construction: bounded subgraphs}
 
 \begin{frame}{Bounded Traversal Around Seed}
 \centering
@@ -892,7 +1097,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 13: Worker Checkpoint Defect and Fix}
+\section{13. Worker reliability}
 
 \begin{frame}{Before: Repeated First-Page Scanning}
 \centering
@@ -928,7 +1133,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 14: Incident Enrichment}
+\section{14. Enrichment: deterministic evidence package}
 
 \begin{frame}{Enrichment Worker Architecture}
 \centering
@@ -975,7 +1180,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 15: MongoDB Collection Architecture}
+\section{15. MongoDB collection architecture}
 
 \begin{frame}{Collection Relationship Map}
 \centering
@@ -1022,7 +1227,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 16: Reliability Model}
+\section{16. Failure containment}
 
 \begin{frame}{Reliability Shield}
 \centering
@@ -1059,7 +1264,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 17: Current State versus Future State}
+\section{17. Current versus future boundary}
 
 \begin{frame}{Current and Future Capability Boundary}
 \centering
@@ -1069,11 +1274,11 @@
   \foreach \txt/\x/\y in {ingestion/1.7/3.2,parsing/3.1/3.2,correlation/4.5/3.2,seeds/2.4/2.1,enrichment/3.8/2.1}{\node[ok,minimum width=1.4cm] at (\x,\y) {\txt};}
   \node[trust,minimum width=5.5cm,minimum height=3.8cm] at (9.1,2.45) {};
   \node[smalltitle,text=Slate] at (9.1,3.95) {Future};
-  \foreach \txt/\x/\y in {Chroma/7.5/3.2,embeddings/9.1/3.2,reranker/10.8/3.2,Ollama/8.2/2.1,Horizon/10.0/2.1}{\node[future,minimum width=1.4cm] at (\x,\y) {\txt};}
+  \foreach \txt/\x/\y in {vectors/7.5/3.2,embeddings/9.1/3.2,reranker/10.8/3.2,provider/8.2/2.1,Horizon/10.0/2.1}{\node[future,minimum width=1.4cm] at (\x,\y) {\txt};}
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 18: Selective Vectorization}
+\section{18. Future AI/RAG layer}
 
 \begin{frame}{Selective Vectorization Funnel}
 \centering
@@ -1108,27 +1313,27 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 19: MSI GPU Architecture}
+\section{19. Future local provider node}
 
-\begin{frame}{Future MSI GPU Node}
+\begin{frame}{Future Local Provider Node}
 \centering
 \begin{tikzpicture}[x=1cm,y=1cm]
   \node[machine,minimum width=8.6cm,minimum height=4.4cm] at (6,2.45) {};
-  \node[smalltitle,text=Slate] at (6,4.25) {MSI Ubuntu GPU node (future)};
+  \node[smalltitle,text=Slate] at (6,4.25) {Optional local AI node (future)};
   \node[future] (api) at (2.9,3.25) {auth API};
   \node[future] (emb) at (5.2,3.25) {sentence\\transformer};
   \node[future] (cuda) at (7.6,3.25) {CUDA\\RTX 4070};
   \node[future] (rerank) at (4.0,1.75) {reranker};
-  \node[future] (ollama) at (6.6,1.75) {Ollama\\local LLM};
+  \node[future] (ollama) at (6.6,1.75) {local/provider\\LLM};
   \node[future] (health) at (9.0,1.75) {health\\checks};
   \draw[futureline] (api)--(emb)--(cuda);
   \draw[futureline] (api)--(rerank)--(ollama);
   \draw[futureline] (api)--(health);
-  \node[note] at (6,.55) {MongoDB and Chroma stay on MacBook; MSI only computes embeddings/ranking/generation.};
+  \node[note] at (6,.55) {MongoDB remains source of truth; optional providers compute embeddings, ranking, or generation.};
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 20: RAG Investigation Flow}
+\section{20. Future grounded AI workflow}
 
 \begin{frame}{Grounded RCA Generation Flow}
 \centering
@@ -1159,7 +1364,7 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 21: Horizon Integration}
+\section{21. Horizon dashboard and operator workflow}
 
 \begin{frame}{Future Horizon RCA Copilot Tab}
 \centering
@@ -1182,8 +1387,8 @@
   \node[future] (browser) at (1.5,2.8) {Horizon\\browser};
   \node[svc] (api) at (4.3,2.8) {RCA backend};
   \node[db] (mongo) at (7.1,3.45) {Mongo};
-  \node[future] (msi) at (7.1,2.0) {MSI inference\\API};
-  \node[future] (ollama) at (10,2.0) {Ollama};
+  \node[future] (msi) at (7.1,2.0) {provider\\adapter};
+  \node[future] (ollama) at (10,2.0) {AI backend};
   \draw[futureline] (browser)--node[above,note]{HTTPS/API}(api);
   \draw[dbread] (api)--(mongo);
   \draw[futureline] (api)--node[below,note]{Tailscale}(msi);
@@ -1192,156 +1397,279 @@
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 22: Operator Investigation Journey}
+\section{22. Operator investigation journey}
 
 \begin{frame}{Operator Storyboard}
 \centering
 \begin{tikzpicture}[x=1cm,y=1cm]
-  \node[err] at (1.2,3.1) {1\\detected};
-  \node[future] at (3.0,3.1) {2\\open tab};
-  \node[graphlogic] at (4.8,3.1) {3\\graph};
-  \node[svc] at (6.6,3.1) {4\\select node};
-  \node[artifact] at (8.4,3.1) {5\\details};
-  \node[future] at (10.2,3.1) {6\\ask AI};
-  \node[future] at (5.7,1.4) {7 retrieved context};
-  \node[ok] at (8.6,1.4) {8 validate conclusion};
-  \foreach \a/\b in {1.2/3.0,3.0/4.8,4.8/6.6,6.6/8.4,8.4/10.2}{\draw[logflow] (\a,3.1)--(\b,3.1);}
-  \draw[futureline] (10.2,2.65).. controls (9.5,1.5) and (7.2,1.5)..(6.8,1.4);
-  \draw[futureline] (6.9,1.4)--(7.4,1.4);
+  \tikzset{
+    storybase/.style={rounded corners=6pt,very thick,align=center,text=DeepNavy,
+      font=\small,minimum width=2.42cm,minimum height=1.36cm,inner sep=6pt},
+    storynum/.style={circle,fill=white,draw=DeepNavy,line width=.8pt,
+      font=\bfseries\small,text=DeepNavy,minimum size=.38cm,inner sep=0pt},
+    storyicon/.style={font=\bfseries\large,text=DeepNavy,align=center},
+    storyarrow/.style={-{Latex[length=3.4mm,width=2.5mm]},line width=1.35pt,draw=DeepNavy},
+    storyfuture/.style={dash pattern=on 5pt off 3pt}
+  }
+
+  \node[storybase,draw=MutedRed,fill=SoftRed] (s1) at (1.55,4.35) {
+    \strut\\[-4pt]Incident\\detected};
+  \node[storynum] at ($(s1.north west)+(.25,-.25)$) {1};
+  \node[storyicon] at ($(s1.north)+(0,-.27)$) {!};
+
+  \node[storybase,draw=MediumBlue,fill=SoftBlue] (s2) at (4.58,4.35) {\strut\\[-4pt]Open RCA\\Copilot};
+  \node[storynum] at ($(s2.north west)+(.25,-.25)$) {2};
+  \node[storyicon] at ($(s2.north)+(0,-.27)$) {$\Box$};
+
+  \node[storybase,draw=Purple,fill=SoftPurple] (s3) at (7.61,4.35) {\strut\\[-4pt]Inspect\\graph};
+  \node[storynum] at ($(s3.north west)+(.25,-.25)$) {3};
+  \node[storyicon] at ($(s3.north)+(0,-.27)$) {$\bullet\!-\!\bullet$};
+
+  \node[storybase,draw=Purple,fill=SoftPurple] (s4) at (10.64,4.35) {\strut\\[-4pt]Select\\event};
+  \node[storynum] at ($(s4.north west)+(.25,-.25)$) {4};
+  \node[storyicon] at ($(s4.north)+(0,-.27)$) {$\triangleright$};
+
+  \node[storybase,draw=MediumBlue,fill=SoftBlue] (s5) at (10.64,1.72) {\strut\\[-4pt]Review\\evidence};
+  \node[storynum] at ($(s5.north west)+(.25,-.25)$) {5};
+  \node[storyicon] at ($(s5.north)+(0,-.27)$) {$i$};
+
+  \node[storybase,storyfuture,draw=Teal,fill=SoftTeal] (s6) at (7.61,1.72) {\strut\\[-4pt]Request AI\\explanation};
+  \node[storynum] at ($(s6.north west)+(.25,-.25)$) {6};
+  \node[storyicon] at ($(s6.north)+(0,-.27)$) {AI};
+
+  \node[storybase,storyfuture,draw=Teal,fill=SoftTeal] (s7) at (4.58,1.72) {\strut\\[-4pt]Review\\context};
+  \node[storynum] at ($(s7.north west)+(.25,-.25)$) {7};
+  \node[storyicon] at ($(s7.north)+(0,-.27)$) {RAG};
+
+  \node[storybase,draw=MutedGreen,fill=SoftGreen] (s8) at (1.55,1.72) {\strut\\[-4pt]Validate\\conclusion};
+  \node[storynum] at ($(s8.north west)+(.25,-.25)$) {8};
+  \node[storyicon] at ($(s8.north)+(0,-.27)$) {OK};
+
+  \draw[storyarrow] (s1.east) -- (s2.west);
+  \draw[storyarrow] (s2.east) -- (s3.west);
+  \draw[storyarrow] (s3.east) -- (s4.west);
+  \draw[storyarrow,rounded corners=7pt] (s4.south) -- ++(0,-.55) -- (s5.north);
+  \draw[storyarrow] (s5.west) -- (s6.east);
+  \draw[storyarrow,storyfuture] (s6.west) -- (s7.east);
+  \draw[storyarrow,storyfuture] (s7.west) -- (s8.east);
+
+  \node[draw=DeepNavy,rounded corners=4pt,fill=white,inner sep=5pt,anchor=north east] at (12.25,6.70) {
+    \begin{tabular}{@{}ll@{}}
+      \tikz{\draw[DeepNavy,line width=1.1pt] (0,0)--(.48,0);} & \small implemented\\
+      \tikz{\draw[DeepNavy,line width=1.1pt,dash pattern=on 4pt off 2pt] (0,0)--(.48,0);} & \small future
+    \end{tabular}
+  };
 \end{tikzpicture}
 \end{frame}
 
-\section{Section 23: Full Final Architecture}
+\section{23. Final architecture}
 
 \begin{frame}{Overall Architecture — Two-Machine RCA Copilot}
 \centering
-\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[x=1cm,y=1cm]
   \tikzset{
-    lane/.style={draw=DeepNavy!30,rounded corners=5pt,thin,fill=white,fill opacity=.62,text opacity=1,inner sep=4pt},
-    buslabel/.style={font=\scriptsize,text=Slate,fill=white,inner sep=1.2pt},
-    compactblue/.style={draw=MediumBlue,very thick,rounded corners=4pt,fill=white,align=center,text=DeepNavy,font=\scriptsize,inner sep=5pt},
-    compactslate/.style={draw=Slate,very thick,rounded corners=4pt,fill=white,align=center,text=DeepNavy,font=\scriptsize,inner sep=5pt},
-    svc/.append style={font=\scriptsize,minimum height=.52cm,inner xsep=4pt},
-    future/.append style={font=\scriptsize,minimum height=.52cm,inner xsep=4pt}
+    archzone/.style={draw=DeepNavy,line width=1.15pt,rounded corners=6pt,fill=LightBG,inner sep=5pt},
+    layer/.style={draw=DeepNavy!38,line width=.75pt,rounded corners=4pt,fill=white,inner sep=4pt},
+    layerfuture/.style={layer,dash pattern=on 5pt off 3pt},
+    archlabel/.style={font=\bfseries\small,text=DeepNavy,fill=LightBG,inner sep=1.5pt},
+    nodelabel/.style={font=\small,text=DeepNavy,align=center},
+    shortlabel/.style={font=\small,text=DeepNavy,fill=white,inner sep=1.2pt},
+    flowlabel/.style={font=\small,text=DeepNavy,fill=white,inner sep=1.1pt,anchor=east},
+    item/.style={draw=MediumBlue,line width=1.05pt,rounded corners=4pt,fill=SoftBlue,
+      font=\small,text=DeepNavy,align=center,minimum height=.58cm,inner xsep=4pt},
+    storeitem/.style={draw=Slate,line width=1.05pt,rounded corners=4pt,fill=SoftSlate,
+      font=\small,text=DeepNavy,align=center,minimum height=.50cm,inner xsep=3pt},
+    futureitem/.style={draw=DeepNavy,line width=1.05pt,dash pattern=on 5pt off 3pt,
+      rounded corners=4pt,fill=white,font=\small,text=DeepNavy,align=center,
+      minimum height=.58cm,inner xsep=4pt},
+    solidflow/.style={-{Latex[length=3mm,width=2.2mm]},line width=1.15pt,draw=MediumBlue},
+    dataflow/.style={-{Latex[length=3mm,width=2.2mm]},line width=1.15pt,draw=Slate},
+    detectflow/.style={-{Latex[length=3mm,width=2.2mm]},line width=1.2pt,draw=MutedRed},
+    futureflow/.style={-{Latex[length=3mm,width=2.2mm]},line width=1.15pt,dash pattern=on 5pt off 3pt,draw=Teal},
+    requestflow/.style={{Latex[length=2.6mm,width=2mm]}-{Latex[length=2.6mm,width=2mm]},line width=1.15pt,dash pattern=on 5pt off 3pt,draw=DeepNavy}
   }
 
-  \node[machine,minimum width=15.65cm,minimum height=6.75cm] (macbox) at (7.95,3.72) {};
-  \node[font=\bfseries\large,text=DeepNavy,fill=white,inner sep=2pt] at (7.95,7.13) {MacBook Pro — OpenStack / Evidence Plane};
-  \node[machine,minimum width=5.20cm,minimum height=6.75cm] (msibox) at (19.95,3.72) {};
-  \node[font=\bfseries\large,text=DeepNavy,fill=white,inner sep=2pt] at (19.95,7.13) {MSI Raider — GPU / AI Plane};
+  \node[archzone,minimum width=8.12cm,minimum height=6.12cm] (mac) at (4.22,3.12) {};
+  \node[archlabel] at (4.22,6.22) {MacBook implemented system};
+  \node[archzone,minimum width=1.12cm,minimum height=6.12cm,fill=white] (tail) at (8.93,3.12) {};
+  \node[font=\bfseries\small,text=DeepNavy,align=center,rotate=90] at (8.93,3.12) {Private API Boundary};
+  \node[font=\bfseries\small,text=DeepNavy,align=center,fill=white,inner sep=1pt] at (8.93,6.18) {Tailscale};
+  \node[archzone,dash pattern=on 5pt off 3pt,minimum width=3.38cm,minimum height=6.12cm] (msi) at (11.55,3.12) {};
+  \node[archlabel] at (11.55,6.22) {future AI provider system};
 
-  \node[lane,minimum width=14.60cm,minimum height=1.26cm] at (7.95,5.92) {};
-  \node[lane,minimum width=14.60cm,minimum height=2.72cm] at (7.95,3.72) {};
-  \node[lane,dashed,minimum width=14.60cm,minimum height=1.10cm] at (7.95,1.28) {};
-  \node[note,anchor=west] at (.84,6.45) {current log ingestion};
-  \node[note,anchor=west] at (.84,4.92) {current evidence processing};
-  \node[note,anchor=west] at (.84,1.76) {future operator retrieval};
+  \node[layer,minimum width=7.55cm,minimum height=.92cm] at (4.22,5.47) {};
+  \node[shortlabel,anchor=west] at (.72,5.86) {OpenStack};
+  \foreach \name/\x in {Nova/2.05,Neutron/3.45,Keystone/4.95,Placement/6.60}
+    \node[item,minimum width=1.18cm] at (\x,5.47) {\name};
 
-  \node[compactblue,minimum width=2.72cm,minimum height=.94cm] (openstack) at (2.55,5.82) {OpenStack services\\{\scriptsize Nova \textbullet{} Neutron}\\[-1pt]{\scriptsize Keystone \textbullet{} Placement}};
-  \node[db,minimum width=1.35cm] (journald) at (5.30,5.82) {journald};
-  \node[svc,minimum width=1.55cm] (collector) at (7.62,5.82) {host\\collector};
-  \node[svc,minimum width=1.65cm] (api) at (10.00,5.82) {FastAPI\\backend};
+  \node[layer,minimum width=7.55cm,minimum height=.92cm] at (4.22,4.37) {};
+  \node[shortlabel,anchor=west] at (.72,4.76) {Ingestion};
+  \node[item,draw=Slate,fill=SoftSlate,minimum width=1.22cm] (journal) at (1.93,4.37) {journald};
+  \node[item,minimum width=1.55cm] (collector) at (3.68,4.37) {host\\collector};
+  \node[item,minimum width=1.65cm] (api) at (5.78,4.37) {FastAPI\\backend};
 
-  \node[compactslate,minimum width=3.05cm,minimum height=2.14cm] (mongo) at (5.38,3.55) {MongoDB evidence store\\[1pt]
-    {\scriptsize raw\_logs}\\[-1pt]
-    {\scriptsize parsed\_logs}\\[-1pt]
-    {\scriptsize event\_edges}\\[-1pt]
-    {\scriptsize incidents}\\[-1pt]
-    {\scriptsize worker\_state}};
-  \node[compactblue,minimum width=3.25cm,minimum height=2.14cm] (workers) at (10.15,3.55) {processing workers\\[1pt]
-    {\scriptsize parser $\rightarrow$ correlation}\\[-1pt]
-    {\scriptsize incident detection}\\[-1pt]
-    {\scriptsize enrichment}};
-  \node[err,minimum width=1.55cm] (incident) at (13.55,3.55) {enriched\\incident};
+  \node[layer,minimum width=7.55cm,minimum height=2.22cm] at (4.22,2.92) {};
+  \node[shortlabel,anchor=west] at (.72,3.88) {Evidence};
+  \node[storeitem,minimum width=1.62cm] (raw) at (2.05,3.45) {raw logs};
+  \node[storeitem,minimum width=1.62cm] (parsed) at (2.05,2.95) {parsed events};
+  \node[storeitem,minimum width=1.62cm] (edges) at (2.05,2.45) {graph edges};
+  \node[storeitem,minimum width=1.62cm] (incidents) at (2.05,1.95) {incidents};
+  \node[storeitem,minimum width=1.62cm] (state) at (2.05,1.45) {worker state};
+  \node[font=\bfseries\small,text=Slate,anchor=west,fill=white,inner sep=1pt] at (2.86,3.92) {MongoDB};
+  \node[item,minimum width=1.58cm] (parser) at (4.32,3.45) {parser};
+  \node[item,draw=Purple,fill=SoftPurple,minimum width=1.58cm] (corr) at (4.32,2.95) {correlation};
+  \node[item,draw=Amber,fill=SoftAmber,minimum width=1.58cm] (detect) at (4.32,2.45) {incident\\detection};
+  \node[item,draw=Teal,fill=SoftTeal,minimum width=1.58cm] (enrich) at (4.32,1.80) {enrichment};
+  \node[item,draw=MutedRed,fill=SoftRed,minimum width=1.56cm] (enriched) at (6.63,2.30) {enriched\\incident};
 
-  \node[svc,minimum width=1.25cm] (operator) at (2.22,1.15) {Operator};
-  \node[future,minimum width=2.30cm] (horizon) at (4.85,1.15) {Horizon RCA\\plugin};
-  \node[future,minimum width=1.72cm] (chroma) at (8.08,1.15) {ChromaDB};
-  \node[future,minimum width=2.05cm] (gateway) at (12.15,1.15) {Inference\\gateway};
+  \node[layerfuture,minimum width=7.55cm,minimum height=.92cm] at (4.22,.77) {};
+  \node[shortlabel,anchor=west] at (.72,1.16) {Future UI};
+  \node[futureitem,minimum width=1.45cm] (chroma) at (3.05,.77) {vector DB};
+  \node[futureitem,minimum width=2.05cm] (horizon) at (6.00,.77) {Horizon RCA\\Copilot};
 
-  \node[trust,minimum width=1.05cm,minimum height=4.92cm,align=center] (tail) at (16.35,3.72) {};
-  \node[note,text=DeepNavy,align=center] at (16.35,5.70) {Tailscale\\API boundary};
+  \node[layerfuture,minimum width=2.86cm,minimum height=1.02cm] at (11.55,5.33) {};
+  \node[shortlabel] at (10.55,5.73) {GPU foundation};
+  \node[futureitem,minimum width=1.12cm] (gpu) at (11.10,5.27) {RTX 4070};
+  \node[futureitem,minimum width=.95cm] (cuda) at (12.38,5.27) {CUDA};
+  \node[layerfuture,minimum width=2.86cm,minimum height=1.38cm] at (11.55,3.55) {};
+  \node[shortlabel] at (10.64,4.10) {Retrieval};
+  \node[futureitem,minimum width=1.20cm] (embed) at (11.10,3.55) {embedding\\API};
+  \node[futureitem,minimum width=1.05cm] (rerank) at (12.43,3.55) {reranker};
+  \node[layerfuture,minimum width=2.86cm,minimum height=1.38cm] at (11.55,1.55) {};
+  \node[shortlabel] at (10.56,2.10) {Generation};
+  \node[futureitem,minimum width=1.05cm] (ollama) at (10.98,1.55) {provider};
+  \node[futureitem,minimum width=.95cm] (llm) at (12.15,1.55) {local\\LLM};
+  \node[item,draw=MutedGreen,fill=SoftGreen,minimum width=1.28cm] (answer) at (11.55,.78) {RCA\\explanation};
 
-  \node[lane,dashed,minimum width=4.20cm,minimum height=1.18cm] at (19.95,5.80) {};
-  \node[lane,dashed,minimum width=4.20cm,minimum height=1.62cm] at (19.95,3.78) {};
-  \node[lane,dashed,minimum width=4.20cm,minimum height=1.00cm] at (19.95,1.64) {};
-  \node[future,minimum width=1.50cm] (ollama) at (18.95,5.78) {Ollama};
-  \node[future,minimum width=1.50cm] (llm) at (20.95,5.78) {local\\LLM};
-  \node[future,minimum width=1.62cm] (embed) at (18.95,3.98) {embedding\\API};
-  \node[future,minimum width=1.62cm] (rerank) at (20.95,3.98) {reranker};
-  \node[transform,minimum width=1.70cm,font=\scriptsize,minimum height=.52cm] (answer) at (19.95,2.95) {RCA\\explanation};
-  \node[future,minimum width=2.45cm] (gpu) at (19.95,1.48) {CUDA + RTX 4070};
+  \draw[solidflow] (journal) -- (collector);
+  \draw[solidflow] (collector) -- (api);
+  \draw[dataflow] (api.south) |- (raw.east);
+  \draw[dataflow,{Latex[length=2.5mm,width=1.8mm]}-{Latex[length=2.5mm,width=1.8mm]}] (raw.east) -- (parser.west);
+  \draw[dataflow,{Latex[length=2.5mm,width=1.8mm]}-{Latex[length=2.5mm,width=1.8mm]}] (parsed.east) -- (corr.west);
+  \draw[dataflow,{Latex[length=2.5mm,width=1.8mm]}-{Latex[length=2.5mm,width=1.8mm]}] (edges.east) -- (detect.west);
+  \draw[dataflow,{Latex[length=2.5mm,width=1.8mm]}-{Latex[length=2.5mm,width=1.8mm]}] (incidents.east) -- (enrich.west);
+  \draw[detectflow] (detect.east) -- (enriched.west);
+  \draw[futureflow] (enriched.south) |- (chroma.east);
+  \draw[futureflow] (chroma.east) -- (horizon.west);
+  \node[flowlabel] at (8.38,3.86) {embedding};
+  \node[flowlabel] at (8.38,3.24) {reranking};
+  \node[flowlabel] at (8.38,1.72) {RCA generation};
+  \draw[requestflow] (8.42,3.72) -- (10.14,3.72);
+  \draw[requestflow] (8.42,3.12) -- (10.14,3.12);
+  \draw[requestflow] (8.42,1.60) -- (10.14,1.60);
+  \draw[futureflow] (embed) -- (rerank);
+  \draw[futureflow] (ollama) -- (llm);
+  \draw[futureflow] (rerank.south) |- (answer.east);
+  \draw[futureflow] (llm.south) |- (answer.east);
+  \draw[futureflow] (cuda) -- (embed);
+  \draw[futureflow] (gpu) -- (ollama);
 
-  \draw[logflow] (openstack) -- node[above,buslabel] {logs} (journald);
-  \draw[logflow] (journald) -- node[above,buslabel] {read} (collector);
-  \draw[logflow] (collector) -- node[above,buslabel] {POST} (api);
-  \draw[dbwrite] (api.south) |- node[pos=.25,right,buslabel] {persist} (mongo.east);
-  \draw[dbread] (mongo) -- node[above,buslabel] {read/write evidence} (workers);
-  \draw[MutedRed,very thick,-{Latex[length=2.7mm]}] (workers) -- node[above,buslabel] {detect} (incident);
-  \draw[Teal,very thick,dashed,-{Latex[length=2.5mm]}] (incident.south) |- node[pos=.65,above,buslabel] {embed} (chroma.east);
-  \draw[futureline] (operator) -- (horizon);
-  \draw[futureline] (horizon) -- node[above,buslabel] {query} (chroma);
-  \draw[futureline] (chroma) -- node[above,buslabel] {retrieve} (gateway);
-  \draw[futureline,line width=1.05pt] (gateway.east) -- node[above,buslabel] {embed \textbullet{} rerank \textbullet{} generate} (tail.west);
-  \draw[futureline,line width=1.05pt] (tail.east) -- (embed.west);
-  \draw[futureline] (tail.east) -- ++(.72,0) |- (rerank.west);
-  \draw[futureline] (tail.east) -- ++(.72,0) |- (ollama.west);
-  \draw[futureline] (ollama) -- (llm);
-  \draw[futureline] (embed) -- (rerank);
-  \draw[futureline] (rerank) -- (answer);
-  \draw[futureline] (answer) |- (ollama.south);
-  \draw[futureline] (embed.south) |- (gpu.north);
-  \draw[futureline] (llm.south) |- (gpu.north);
-\end{tikzpicture}}
+  \node[draw=DeepNavy,rounded corners=4pt,fill=white,inner sep=3pt,anchor=north west] at (.58,.08) {
+    \begin{tabular}{@{}ll@{}}
+      \tikz{\draw[MediumBlue,line width=1.1pt,-{Latex[length=2.2mm]}] (0,0)--(.42,0);} & \small implemented\\
+      \tikz{\draw[Teal,line width=1.1pt,dash pattern=on 4pt off 2pt,-{Latex[length=2.2mm]}] (0,0)--(.42,0);} & \small future
+    \end{tabular}
+  };
+\end{tikzpicture}
 \end{frame}
 
 \begin{frame}{Full Final Architecture}
 \centering
-\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[x=1cm,y=1cm]
   \tikzset{
-    summaryblue/.style={draw=MediumBlue,very thick,rounded corners=5pt,fill=white,align=center,text=DeepNavy,font=\small,inner sep=7pt},
-    summaryslate/.style={draw=Slate,very thick,rounded corners=5pt,fill=white,align=center,text=DeepNavy,font=\small,inner sep=7pt},
-    summarypurple/.style={draw=Purple,very thick,rounded corners=5pt,fill=white,align=center,text=DeepNavy,font=\small,inner sep=7pt},
-    quiet/.style={font=\scriptsize,text=Slate,align=center,fill=white,inner sep=1.5pt}
+    finalzone/.style={draw=DeepNavy,line width=1.15pt,rounded corners=6pt,fill=LightBG,inner sep=5pt},
+    finalfuture/.style={finalzone,dash pattern=on 5pt off 3pt},
+    zonetitle/.style={font=\bfseries\small,text=DeepNavy,fill=LightBG,inner sep=1pt},
+    fnode/.style={draw=MediumBlue,line width=1.05pt,rounded corners=4pt,fill=SoftBlue,
+      align=center,text=DeepNavy,font=\small,minimum height=.50cm,inner xsep=3pt},
+    fstore/.style={draw=Slate,line width=1.05pt,rounded corners=4pt,fill=SoftSlate,
+      align=center,text=DeepNavy,font=\small,minimum height=.45cm,inner xsep=3pt},
+    ffuture/.style={draw=DeepNavy,line width=1.05pt,dash pattern=on 5pt off 3pt,
+      rounded corners=4pt,fill=white,align=center,text=DeepNavy,font=\small,
+      minimum height=.50cm,inner xsep=3pt},
+    flabel/.style={font=\small,text=DeepNavy,fill=white,inner sep=1pt},
+    ingest/.style={-{Latex[length=2.9mm,width=2.1mm]},line width=1.15pt,draw=MediumBlue},
+    process/.style={-{Latex[length=2.9mm,width=2.1mm]},line width=1.15pt,draw=Purple},
+    retrieve/.style={-{Latex[length=2.9mm,width=2.1mm]},line width=1.15pt,dash pattern=on 5pt off 3pt,draw=Teal},
+    infer/.style={-{Latex[length=2.9mm,width=2.1mm]},line width=1.15pt,dash pattern=on 5pt off 3pt,draw=MutedGreen},
+    interact/.style={{Latex[length=2.4mm,width=1.8mm]}-{Latex[length=2.4mm,width=1.8mm]},line width=1.05pt,draw=DeepNavy}
   }
-  \node[machine,minimum width=12.80cm,minimum height=5.70cm] at (6.85,3.05) {};
-  \node[smalltitle] at (6.85,5.72) {MacBook OpenStack host: implemented evidence plane};
-  \node[machine,minimum width=4.65cm,minimum height=5.70cm] at (15.85,3.05) {};
-  \node[smalltitle,text=Slate] at (15.85,5.72) {MSI Raider: future local AI plane};
 
-  \node[summaryblue,minimum width=2.75cm,minimum height=1.15cm] (source) at (2.05,4.25) {OpenStack\\{\scriptsize service logs}};
-  \node[summaryblue,minimum width=2.75cm,minimum height=1.15cm] (ingest) at (5.05,4.25) {Collector + API\\{\scriptsize journal read $\rightarrow$ POST}};
-  \node[summaryslate,minimum width=3.30cm,minimum height=2.15cm] (store) at (8.75,3.58) {MongoDB evidence store\\[2pt]
-    {\scriptsize raw \textbullet{} parsed \textbullet{} edges}\\[-1pt]
-    {\scriptsize incidents \textbullet{} state}};
-  \node[summarypurple,minimum width=3.10cm,minimum height=2.15cm] (pipeline) at (5.05,1.85) {workers\\[2pt]
-    {\scriptsize parser \textbullet{} correlation}\\[-1pt]
-    {\scriptsize incident \textbullet{} enrichment}};
-  \node[err,minimum width=1.75cm] (inc) at (10.95,1.85) {enriched\\incident};
+  \node[finalzone,minimum width=2.05cm,minimum height=5.55cm] at (1.25,3.00) {};
+  \node[zonetitle] at (1.25,5.72) {OpenStack source};
+  \node[finalzone,minimum width=4.55cm,minimum height=5.55cm] at (4.52,3.00) {};
+  \node[zonetitle] at (4.52,5.72) {Deterministic evidence};
+  \node[finalfuture,minimum width=3.15cm,minimum height=5.55cm] at (8.45,3.00) {};
+  \node[zonetitle] at (8.45,5.72) {Retrieval and AI};
+  \node[finalfuture,minimum width=2.70cm,minimum height=5.55cm] at (11.70,3.00) {};
+  \node[zonetitle] at (11.70,5.72) {Operator experience};
 
-  \node[future,minimum width=2.55cm] (ui) at (13.70,4.40) {Horizon RCA\\plugin};
-  \node[future,minimum width=2.10cm] (rag) at (13.70,2.95) {ChromaDB\\+ RAG};
-  \node[future,minimum width=2.05cm] (ai) at (16.70,3.65) {embeddings\\reranker};
-  \node[future,minimum width=2.05cm] (llm) at (16.70,2.25) {Ollama\\local LLM};
-  \node[svc,minimum width=1.35cm] (op) at (16.70,4.92) {Operator};
+  \node[fnode,minimum width=1.08cm] at (1.25,5.05) {Nova};
+  \node[fnode,minimum width=1.08cm] at (1.25,4.45) {Neutron};
+  \node[fnode,minimum width=1.08cm] at (1.25,3.85) {Keystone};
+  \node[fnode,minimum width=1.08cm] at (1.25,3.25) {Placement};
+  \node[fstore,minimum width=1.14cm] (journal3) at (1.25,2.38) {journald};
 
-  \draw[logflow] (source) -- (ingest);
-  \draw[dbwrite] (ingest) -- node[above,quiet] {persist} (store);
-  \draw[dbread] (store.south west) -- node[left,quiet] {evidence} (pipeline.north east);
-  \draw[dbwrite] (pipeline.east) -- node[below,quiet] {detect + enrich} (inc.west);
-  \draw[dbwrite] (inc.north) -- (store.south east);
-  \draw[futureline] (inc.east) -- (rag.west);
-  \draw[futureline] (op) -- (ui);
-  \draw[futureline] (ui) -- (rag);
-  \draw[futureline] (rag.east) -- node[above,quiet] {Tailscale} (ai.west);
-  \draw[futureline] (rag.east) -- ++(.42,0) |- (llm.west);
-  \draw[futureline] (ai) -- (llm);
-\end{tikzpicture}}
+  \node[fnode,minimum width=1.12cm] (collector3) at (2.80,4.75) {collector};
+  \node[fnode,minimum width=1.35cm] (backend3) at (4.45,4.75) {RCA\\backend};
+  \node[fstore,minimum width=1.20cm] (raw3) at (2.80,3.68) {raw logs};
+  \node[fstore,minimum width=1.20cm] (parsed3) at (2.80,3.15) {parsed};
+  \node[fstore,minimum width=1.20cm] (edges3) at (2.80,2.62) {edges};
+  \node[fstore,minimum width=1.20cm] (incidents3) at (2.80,2.09) {incidents};
+  \node[font=\bfseries\small,text=Slate] at (2.80,4.06) {MongoDB};
+  \node[fnode,minimum width=1.15cm] (parser3) at (4.45,3.68) {parser};
+  \node[fnode,draw=Purple,fill=SoftPurple,minimum width=1.15cm] (corr3) at (4.45,3.15) {correlation};
+  \node[fnode,draw=Amber,fill=SoftAmber,minimum width=1.15cm] (detect3) at (4.45,2.62) {incident\\detect};
+  \node[fnode,draw=Teal,fill=SoftTeal,minimum width=1.15cm] (enrich3) at (4.45,2.02) {enrichment};
+  \node[fnode,draw=MutedRed,fill=SoftRed,minimum width=1.38cm] (enriched3) at (6.05,2.36) {enriched\\incident};
+
+  \node[ffuture,minimum width=1.15cm] (chroma3) at (7.35,3.65) {vector DB};
+  \node[ffuture,minimum width=1.20cm] (embed3) at (8.95,4.72) {embedding\\API};
+  \node[ffuture,minimum width=1.08cm] (rerank3) at (8.95,3.65) {reranker};
+  \node[ffuture,minimum width=1.05cm] (ollama3) at (7.75,2.12) {provider};
+  \node[ffuture,minimum width=1.05cm] (llm3) at (8.95,2.12) {local\\LLM};
+  \node[fnode,draw=MutedGreen,fill=SoftGreen,minimum width=1.42cm] (explain3) at (8.45,1.05) {grounded RCA\\explanation};
+
+  \node[ffuture,minimum width=1.74cm] (horizon3) at (11.70,4.75) {Horizon RCA\\Copilot};
+  \node[ffuture,minimum width=.96cm] (ilist3) at (11.05,3.62) {incident\\list};
+  \node[ffuture,minimum width=.96cm] (graph3) at (12.35,3.62) {graph\\view};
+  \node[ffuture,minimum width=.96cm] (timeline3) at (11.05,2.80) {timeline};
+  \node[ffuture,minimum width=.96cm] (evidence3) at (12.35,2.80) {evidence\\panel};
+  \node[ffuture,minimum width=1.44cm] (aipanel3) at (11.70,1.94) {AI explanation\\panel};
+  \node[fnode,draw=MutedGreen,fill=SoftGreen,minimum width=1.12cm] (operator3) at (11.70,.86) {Operator};
+
+  \draw[ingest] (journal3.east) -| (collector3.west);
+  \draw[ingest] (collector3) -- (backend3);
+  \draw[ingest] (backend3.south) |- (raw3.east);
+  \draw[process] (raw3) -- (parser3);
+  \draw[process] (parsed3) -- (corr3);
+  \draw[process] (edges3) -- (detect3);
+  \draw[process] (incidents3) -- (enrich3);
+  \draw[process] (detect3.east) -- (enriched3.west);
+  \draw[process] (enrich3.east) -- (enriched3.west);
+  \draw[process] (enriched3.north) |- (backend3.east);
+  \draw[retrieve] (enriched3.east) -- (chroma3.west);
+  \draw[retrieve] (chroma3.east) -- (rerank3.west);
+  \draw[retrieve] (chroma3.north) |- (embed3.west);
+  \draw[infer] (embed3.south) -- (rerank3.north);
+  \draw[infer] (ollama3) -- (llm3);
+  \draw[infer] (rerank3.south) |- (explain3.east);
+  \draw[infer] (llm3.south) |- (explain3.east);
+  \draw[infer] (explain3.east) -| (horizon3.south);
+  \draw[interact] (backend3.north) -- ++(0,.32) -| node[pos=.72,above,flabel] {incident data} (horizon3.west);
+  \draw[interact] (backend3.east) -- ++(.72,0) |- node[pos=.77,above,flabel] {AI request} (explain3.west);
+  \draw[interact] (horizon3.south) -- ++(0,-.35) -| (ilist3.north);
+  \draw[interact] (horizon3.south) -- ++(0,-.35) -| (graph3.north);
+  \draw[interact] (ilist3.south) -- (timeline3.north);
+  \draw[interact] (graph3.south) -- (evidence3.north);
+  \draw[interact] (timeline3.south) |- (aipanel3.west);
+  \draw[interact] (evidence3.south) |- (aipanel3.east);
+  \draw[interact] (aipanel3.south) -- (operator3.north);
+
+\end{tikzpicture}
 \end{frame}
 
-\section{Section 24: Roadmap}
+\section{24. Roadmap and next steps}
 
 \begin{frame}{Roadmap}
 \centering
@@ -1355,10 +1683,10 @@
   \node[ok,minimum width=1.55cm] at (10.1,3.1) {monorepo};
   \draw[logflow] (.75,3.1)--(10.95,3.1);
   \node[smalltitle,text=Slate] at (1.0,2.15) {Future};
-  \node[future,minimum width=1.75cm] at (1.8,1.45) {MSI embeds};
+  \node[future,minimum width=1.75cm] at (1.8,1.45) {provider embeds};
   \node[future,minimum width=1.75cm] at (3.8,1.45) {Chroma};
   \node[future,minimum width=1.75cm] at (5.8,1.45) {RAG};
-  \node[future,minimum width=1.75cm] at (7.8,1.45) {Ollama};
+  \node[future,minimum width=1.75cm] at (7.8,1.45) {AI provider};
   \node[future,minimum width=1.75cm] at (9.8,1.45) {Horizon};
   \node[future,minimum width=1.75cm] at (11.8,1.45) {demo};
   \draw[futureline] (.85,1.45)--(12.75,1.45);

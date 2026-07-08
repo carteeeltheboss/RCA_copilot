@@ -1,0 +1,9 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'rca_copilot/rca_copilot.css' %}">
+{% if backend_error %}
+<div class="alert alert-danger">
+  <strong>RCA backend unavailable.</strong> {{ backend_error }}
+</div>
+{% endif %}
+
+{% comment %} Shared snippets are included by page templates through Django include-only rendering. {% endcomment %}

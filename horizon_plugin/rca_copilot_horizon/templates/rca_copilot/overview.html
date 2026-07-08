@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}{% trans "RCA Copilot Overview" %}{% endblock %}
+{% block main %}
+{% include 'rca_copilot/_common.html' %}
+<div class="rca-page">
+  <div class="rca-grid rca-summary-grid">
+    {% for key, value in summary.counts.items %}
+    <div class="panel panel-default rca-card">
+      <div class="panel-body">
+        <div class="rca-card-label">{{ key|title }}</div>
+        <div class="rca-card-value">{{ value|default:0 }}</div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="alert alert-info">No summary data is available.</div>
+    {% endfor %}
+  </div>
+
+  <div class="panel panel-default">
+    <div class="panel-heading"><h3 class="panel-title">Pipeline</h3></div>
+    <div class="panel-body rca-pipeline">
+      {% for stage in summary.pipeline %}
+      <div class="rca-stage">
+        <span class="rca-stage-name">{{ stage.name }}</span>
+        <span class="label label-{{ stage.status }}">{{ stage.status }}</span>
+        <small>{{ stage.latest_activity_time|default:"No activity" }}</small>
+        <small>{{ stage.processed_count|default:0 }} processed</small>
+      </div>
+      {% empty %}
+      <div class="rca-empty">Pipeline state is unknown.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="panel panel-default">
+        <div class="panel-heading"><h3 class="panel-title">Recent Incidents</h3></div>
+        <table class="table table-striped table-hover">
+          <thead><tr><th>Severity</th><th>Title</th><th>Service</th><th>Status</th><th>Events</th><th>Started</th><th></th></tr></thead>
+          <tbody>
+            {% for incident in summary.recent_incidents %}
+            <tr>
+              <td><span class="label label-{{ incident.severity|lower }}">{{ incident.severity }}</span></td>
+              <td>{{ incident.title }}</td>
+              <td>{{ incident.primary_service|default:"-" }}</td>
+              <td>{{ incident.status }}</td>
+              <td>{{ incident.event_count }}</td>
+              <td>{{ incident.started_at }}</td>
+              <td><a class="btn btn-xs btn-primary" href="{% url 'horizon:rca_copilot:investigation:detail' incident.incident_id %}">Open</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="rca-empty">No incidents are available.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="panel panel-default">
+        <div class="panel-heading"><h3 class="panel-title">AI Availability</h3></div>
+        <div class="list-group">
+          {% for type, provider in summary.ai_availability.items %}
+          <div class="list-group-item">
+            <strong>{{ type|title }}</strong>
+            <span class="pull-right label label-{{ provider.status }}">{{ provider.status|default:"Not configured" }}</span>
+            <div><small>{{ provider.display_name|default:"Not configured" }}</small></div>
+          </div>
+          {% empty %}
+          <div class="list-group-item">Not configured</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
