@@ -65,7 +65,7 @@ def _safe_detail(exc: urllib.error.HTTPError) -> str:
         data = json.loads(exc.read(65536).decode("utf-8"))
         detail = data.get("detail", data)
         if isinstance(detail, dict):
-            return str(detail.get("error") or "RCA backend request failed")
+            return str(detail.get("error") or detail.get("reason") or "RCA backend request failed")
         return str(detail)
     except Exception:
         return "RCA backend request failed"

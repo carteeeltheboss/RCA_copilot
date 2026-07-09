@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from pymongo import ASCENDING, IndexModel, UpdateOne
@@ -13,9 +14,13 @@ class ParserRepository:
         raw_collection: object,
         parsed_collection: object,
         parser_version: str,
+        state_collection: object | None = None,
+        worker_state_key: str = "parser_worker_v1",
     ) -> None:
         self.raw_collection = raw_collection
         self.parsed_collection = parsed_collection
+        self.state_collection = state_collection
+        self.worker_state_key = worker_state_key
         self.parser_version = parser_version
 
     async def ensure_indexes(self) -> None:
@@ -85,3 +90,20 @@ class ParserRepository:
             for document in raw_documents
         ]
         return await self.upsert_parsed(parsed_documents)
+
+    async def heartbeat(self, processed_count: int = 0) -> None:
+        if self.state_collection is None:
+            return
+        await self.state_collection.update_one(
+            {"_id": self.worker_state_key},
+            {
+                "$set": {
+                    "worker": self.worker_state_key,
+                    "updated_at": datetime.now(UTC),
+                    "last_batch_count": processed_count,
+                    "parser_version": self.parser_version,
+                },
+                "$setOnInsert": {"created_at": datetime.now(UTC)},
+            },
+            upsert=True,
+        )

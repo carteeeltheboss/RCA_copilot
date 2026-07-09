@@ -35,6 +35,8 @@ class CorrelationRepository:
         self,
         parsed_collection: object,
         edge_collection: object,
+        state_collection: object,
+        worker_state_key: str,
         correlation_version: str,
         request_id_max_gap: timedelta,
         resource_id_max_gap: timedelta,
@@ -43,6 +45,8 @@ class CorrelationRepository:
     ) -> None:
         self.parsed_collection = parsed_collection
         self.edge_collection = edge_collection
+        self.state_collection = state_collection
+        self.worker_state_key = worker_state_key
         self.correlation_version = correlation_version
         self.request_rule = CorrelationRule("same_request_id", 1.0, request_id_max_gap)
         self.resource_rule = CorrelationRule("shared_resource_id", 0.9, resource_id_max_gap)
@@ -193,8 +197,29 @@ class CorrelationRepository:
                 metrics.edges_inserted,
                 metrics.candidate_edges,
                 metrics.skipped_edges,
-            )
+        )
         return metrics
+
+    async def heartbeat(self, metrics: CorrelationBatchMetrics | None = None) -> None:
+        updated_at = datetime.now(UTC)
+        state = {
+            "worker": self.worker_state_key,
+            "updated_at": updated_at,
+            "correlation_version": self.correlation_version,
+        }
+        if metrics is not None:
+            state.update(
+                {
+                    "last_batch_count": metrics.events_scanned,
+                    "last_edges_inserted": metrics.edges_inserted,
+                    "last_groups_processed": metrics.groups_processed,
+                }
+            )
+        await self.state_collection.update_one(
+            {"_id": self.worker_state_key},
+            {"$set": state, "$setOnInsert": {"created_at": updated_at}},
+            upsert=True,
+        )
 
     def _add_group_ref(
         self,

@@ -30,17 +30,21 @@ class ParserWorker:
         repository = ParserRepository(
             raw_collection=database[self.config.raw_logs_collection],
             parsed_collection=database[self.config.parsed_logs_collection],
+            state_collection=database[self.config.worker_state_collection],
+            worker_state_key=self.config.worker_state_key,
             parser_version=self.config.parser_version,
         )
 
         await repository.ensure_indexes()
         await self._client.admin.command("ping")
         self._mark_healthy()
+        await repository.heartbeat()
 
         try:
             while not self._stopping:
-                await repository.process_batch(self.config.batch_size)
+                processed_count = await repository.process_batch(self.config.batch_size)
                 self._mark_healthy()
+                await repository.heartbeat(processed_count)
                 await asyncio.sleep(self.config.poll_interval_seconds)
         finally:
             self._client.close()
@@ -63,4 +67,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

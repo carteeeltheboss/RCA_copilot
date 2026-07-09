@@ -177,6 +177,28 @@ class IncidentRepository:
             upsert=True,
         )
 
+    async def heartbeat(self, metrics: IncidentBatchMetrics | None = None) -> None:
+        updated_at = datetime.now(UTC)
+        state = {
+            "worker": self.worker_state_key,
+            "updated_at": updated_at,
+            "incident_version": self.incident_version,
+            "correlation_version": self.correlation_version,
+        }
+        if metrics is not None:
+            state.update(
+                {
+                    "last_batch_count": metrics.events_scanned,
+                    "last_seeds_detected": metrics.seeds_detected,
+                    "last_incidents_inserted": metrics.incidents_inserted,
+                }
+            )
+        await self.state_collection.update_one(
+            {"_id": self.worker_state_key},
+            {"$set": state, "$setOnInsert": {"created_at": updated_at}},
+            upsert=True,
+        )
+
     def _batch_query(self, checkpoint: ScanCheckpoint | None) -> dict[str, Any]:
         query: dict[str, Any] = {
             "parse_status": "success",

@@ -128,6 +128,15 @@ class FakeParsedCollection:
         return FakeBulkResult(upserted_count)
 
 
+class FakeStateCollection:
+    def __init__(self) -> None:
+        self.document: dict[str, object] = {}
+
+    async def update_one(self, query: dict[str, object], update: dict[str, object], upsert: bool = False) -> None:
+        self.document.update(update.get("$set", {}))  # type: ignore[arg-type]
+        self.document.update(update.get("$setOnInsert", {}))  # type: ignore[arg-type]
+
+
 def test_duplicate_prevention_uses_idempotent_upserts() -> None:
     raw_collection = FakeRawCollection(
         [
@@ -148,3 +157,21 @@ def test_duplicate_prevention_uses_idempotent_upserts() -> None:
         )
 
     assert asyncio.run(process_twice()) == (1, 0)
+
+
+def test_parser_repository_writes_worker_state_heartbeat() -> None:
+    state_collection = FakeStateCollection()
+    repository = ParserRepository(
+        FakeRawCollection([]),
+        FakeParsedCollection(),
+        "parser-v1",
+        state_collection=state_collection,
+        worker_state_key="parser_worker_v1",
+    )
+
+    asyncio.run(repository.heartbeat(processed_count=3))
+
+    assert state_collection.document["worker"] == "parser_worker_v1"
+    assert state_collection.document["last_batch_count"] == 3
+    assert state_collection.document["parser_version"] == "parser-v1"
+    assert "updated_at" in state_collection.document

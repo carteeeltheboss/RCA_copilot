@@ -31,6 +31,8 @@ class CorrelationConfig:
     mongo_database: str = "rca_copilot"
     parsed_logs_collection: str = "parsed_logs"
     event_edges_collection: str = "event_edges"
+    worker_state_collection: str = "worker_state"
+    worker_state_key: str = "correlation_worker_v1"
     correlation_version: str = "correlation-v1"
     batch_size: int = 100
     poll_interval_seconds: float = 2.0
@@ -53,6 +55,11 @@ class CorrelationConfig:
                 "MONGO_EVENT_EDGES_COLLECTION",
                 cls.event_edges_collection,
             ),
+            worker_state_collection=os.getenv(
+                "MONGO_WORKER_STATE_COLLECTION",
+                cls.worker_state_collection,
+            ),
+            worker_state_key=os.getenv("CORRELATION_WORKER_STATE_KEY", cls.worker_state_key),
             correlation_version=os.getenv("CORRELATION_VERSION", cls.correlation_version),
             batch_size=_env_int("CORRELATION_BATCH_SIZE", cls.batch_size),
             poll_interval_seconds=_env_float(

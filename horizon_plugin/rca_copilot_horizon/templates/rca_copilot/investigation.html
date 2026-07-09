@@ -17,7 +17,13 @@
         <div class="panel-heading"><h3 class="panel-title">Interactive Correlation Graph</h3></div>
         <div class="panel-body">
           {% if graph.truncated %}<div class="alert alert-warning">Graph is bounded to {{ graph.max_nodes }} nodes.</div>{% endif %}
-          <div id="rca-graph" class="rca-graph" data-graph='{{ graph_json|escape }}'></div>
+          {{ graph|json_script:"rca-graph-data" }}
+          <div class="btn-toolbar rca-graph-toolbar">
+            <button type="button" class="btn btn-default btn-xs" data-graph-action="fit">Fit</button>
+            <button type="button" class="btn btn-default btn-xs" data-graph-action="zoom-in">Zoom in</button>
+            <button type="button" class="btn btn-default btn-xs" data-graph-action="zoom-out">Zoom out</button>
+          </div>
+          <div id="rca-graph" class="rca-graph"></div>
           <div class="rca-legend"><span class="dot error"></span>Error/Critical <span class="dot warn"></span>Warning <span class="dot info"></span>Info <span class="dot debug"></span>Debug <span class="edge purple"></span>Request <span class="edge teal"></span>Resource</div>
         </div>
       </div>
@@ -44,7 +50,7 @@
         <table class="table table-condensed table-hover">
           <tbody>
           {% for event in timeline.items %}
-            <tr class="rca-timeline-row" data-event-id="{{ event.event_id }}"><td>{{ event.timestamp }}</td><td>{{ event.service }}</td><td>{{ event.level }}</td><td>{{ event.message|truncatechars:120 }}</td><td>{{ event.request_id }}</td><td>{% if event.event_id == incident.seed_event_id %}<span class="label label-warning">seed</span>{% endif %}</td></tr>
+            <tr class="rca-timeline-row" data-event-id="{{ event.event_id }}"><td>{{ event.timestamp }}</td><td>{{ event.level }}</td><td>{{ event.service }}</td><td>{{ event.message|truncatechars:120 }}</td><td>{{ event.request_id }}</td><td>{{ event.resource_ids|join:", " }}</td><td>{% if event.event_id == incident.seed_event_id %}<span class="label label-warning">seed</span>{% endif %}</td></tr>
           {% empty %}
             <tr><td class="rca-empty">No timeline entries are available.</td></tr>
           {% endfor %}
@@ -55,18 +61,20 @@
     <div class="col-md-5">
       <div class="panel panel-default">
         <div class="panel-heading"><h3 class="panel-title">Selected Event Details</h3></div>
-        <div class="panel-body"><pre id="rca-event-details">Select a graph node or timeline event.</pre></div>
+        <div class="panel-body" id="rca-event-details">Select a graph node, graph edge, or timeline event.</div>
       </div>
     </div>
   </div>
   <div class="panel panel-default">
-    <div class="panel-heading"><h3 class="panel-title">AI Explanation and Retrieval</h3></div>
-    <div class="panel-body">
-      <div class="alert alert-warning">Inference service not configured or unavailable.</div>
-      <button class="btn btn-default" disabled>Explain incident</button>
-      <button class="btn btn-default" disabled>Explain selected event</button>
-      <button class="btn btn-default" disabled>Find similar incidents</button>
-      <button class="btn btn-default" disabled>Suggest investigation steps</button>
+    <div class="panel-heading"><h3 class="panel-title">AI-assisted explanation from bounded evidence</h3></div>
+    <div class="panel-body" id="rca-ai-panel" data-explain-url="{% url 'horizon:rca_copilot:investigation:explain' incident.incident_id %}">
+      {% csrf_token %}
+      <button class="btn btn-primary" id="rca-explain-button" type="button">Explain incident</button>
+      <span class="rca-ai-loading text-muted" id="rca-ai-loading" hidden>Generating explanation...</span>
+      <div class="alert alert-warning rca-ai-result" id="rca-ai-error" hidden></div>
+      <div class="rca-ai-result" id="rca-ai-result" aria-live="polite">
+        <div class="rca-empty">No AI explanation has been generated for this page view.</div>
+      </div>
     </div>
   </div>
 </div>

@@ -222,6 +222,63 @@ def _active_provider(**overrides: Any) -> dict[str, Any]:
     return item
 
 
+def test_system_health_uses_fresh_worker_state_for_parser_and_correlation() -> None:
+    repo = _repo()
+    now = datetime.now(UTC)
+    repo.worker_state.documents.extend(
+        [
+            {"_id": "parser_worker_v1", "worker": "parser_worker_v1", "updated_at": now},
+            {"_id": "correlation_worker_v1", "worker": "correlation_worker_v1", "updated_at": now},
+            {"_id": "incident_worker_v1", "worker": "incident_worker_v1", "updated_at": now},
+            {"_id": "enrichment_worker_v1", "worker": "enrichment_worker_v1", "updated_at": now},
+        ]
+    )
+
+    health = _run(repo.system_health())
+    statuses = {item["component"]: item["status"] for item in health["components"]}
+
+    assert statuses["parser-worker"] == "healthy"
+    assert statuses["correlation-worker"] == "healthy"
+    assert statuses["incident-worker"] == "healthy"
+    assert statuses["enrichment-worker"] == "healthy"
+
+
+def test_graph_and_timeline_endpoints_return_incident_evidence() -> None:
+    repo = _repo()
+    repo.incidents.documents.append(
+        _incident(
+            seed_event_id="event-1",
+            timeline=[
+                {
+                    "event_id": "event-1",
+                    "timestamp": "2026-07-09T10:00:00Z",
+                    "level": "ERROR",
+                    "service": "nova-compute",
+                    "message": "build failed",
+                    "request_id": "req-1",
+                    "resource_ids": ["server-1"],
+                }
+            ],
+        )
+    )
+    repo.parsed_logs.documents.append({"_id": "event-1", "service": "nova-compute", "level": "ERROR", "message": "build failed"})
+    repo.event_edges.documents.append({"_id": "edge-1", "source_event_id": "event-1", "target_event_id": "event-1", "reason": "same_request_id", "confidence": 1.0})
+
+    async def _request():
+        async with await _client(repo) as client:
+            graph = await client.get("/api/v1/incidents/incident-1/graph")
+            timeline = await client.get("/api/v1/incidents/incident-1/timeline")
+            return graph, timeline
+
+    graph_response, timeline_response = _run(_request())
+
+    assert graph_response.status_code == 200
+    assert timeline_response.status_code == 200
+    assert graph_response.json()["nodes"][0]["seed"] is True
+    assert graph_response.json()["edges"][0]["reason"] == "same_request_id"
+    assert timeline_response.json()["items"][0]["event_id"] == "event-1"
+
+
 def test_no_provider_explain_returns_structured_503() -> None:
     _set_env()
     repo = _repo()

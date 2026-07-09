@@ -77,6 +77,22 @@
   background: #fbfcfe;
 }
 
+.rca-graph-toolbar {
+  margin-bottom: 8px;
+}
+
+.rca-graph canvas {
+  outline: none;
+}
+
+.rca-timeline-row {
+  cursor: pointer;
+}
+
+.rca-timeline-row.selected td {
+  background: #eaf3fb;
+}
+
 .rca-node {
   border: 2px solid #55708f;
   border-radius: 50%;
@@ -192,4 +208,17 @@
 .rca-result {
   max-height: 240px;
   overflow: auto;
+}
+
+.rca-explain-form {
+  margin-bottom: 12px;
+}
+
+.rca-ai-result {
+  margin-top: 12px;
+}
+
+.rca-ai-loading {
+  display: inline-block;
+  margin-left: 10px;
 }

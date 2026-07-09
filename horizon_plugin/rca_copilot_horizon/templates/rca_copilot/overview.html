@@ -66,6 +66,7 @@
             <strong>{{ type|title }}</strong>
             <span class="pull-right label label-{{ provider.status }}">{{ provider.status|default:"Not configured" }}</span>
             <div><small>{{ provider.display_name|default:"Not configured" }}</small></div>
+            {% if provider.model_name %}<div><small>{{ provider.provider_kind }} · {{ provider.model_name }}</small></div>{% endif %}
           </div>
           {% empty %}
           <div class="list-group-item">Not configured</div>

@@ -167,6 +167,27 @@ class EnrichmentRepository:
             upsert=True,
         )
 
+    async def heartbeat(self, metrics: EnrichmentBatchMetrics | None = None) -> None:
+        updated_at = datetime.now(UTC)
+        state = {
+            "worker": self.worker_state_key,
+            "updated_at": updated_at,
+            "enrichment_version": self.enrichment_version,
+        }
+        if metrics is not None:
+            state.update(
+                {
+                    "last_batch_count": metrics.incidents_scanned,
+                    "last_incidents_enriched": metrics.incidents_enriched,
+                    "last_incidents_failed": metrics.incidents_failed,
+                }
+            )
+        await self.state_collection.update_one(
+            {"_id": self.worker_state_key},
+            {"$set": state, "$setOnInsert": {"created_at": updated_at}},
+            upsert=True,
+        )
+
     def _batch_query(self, checkpoint: ScanCheckpoint | None) -> dict[str, Any]:
         query: dict[str, Any] = {
             "status": "candidate",

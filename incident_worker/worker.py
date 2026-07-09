@@ -49,11 +49,13 @@ class IncidentWorker:
         await repository.ensure_indexes()
         await self._client.admin.command("ping")
         self._mark_healthy()
+        await repository.heartbeat()
 
         try:
             while not self._stopping:
-                await repository.process_available_batches(self.config.batch_size)
+                batches = await repository.process_available_batches(self.config.batch_size)
                 self._mark_healthy()
+                await repository.heartbeat(batches[-1] if batches else None)
                 await asyncio.sleep(self.config.poll_interval_seconds)
         finally:
             self._client.close()

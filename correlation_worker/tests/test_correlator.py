@@ -8,6 +8,7 @@ from correlation_worker.correlator import (
     build_edges_for_group,
     build_edges_for_events,
 )
+from correlation_worker.repository import CorrelationBatchMetrics, CorrelationRepository
 
 
 REQUEST_RULE = CorrelationRule("same_request_id", 1.0, timedelta(minutes=5))
@@ -166,3 +167,44 @@ def test_shared_resource_chain_remains_connected() -> None:
     assert [edge.reason for edge in result.edges] == ["shared_resource_id", "shared_resource_id"]
     assert [edge.source_event_id for edge in result.edges] == ["first", "middle"]
     assert [edge.target_event_id for edge in result.edges] == ["middle", "later"]
+
+
+class FakeStateCollection:
+    def __init__(self) -> None:
+        self.document: dict[str, object] = {}
+
+    async def update_one(self, query: dict[str, object], update: dict[str, object], upsert: bool = False) -> None:
+        self.document.update(update.get("$set", {}))  # type: ignore[arg-type]
+        self.document.update(update.get("$setOnInsert", {}))  # type: ignore[arg-type]
+
+
+def test_correlation_repository_writes_worker_state_heartbeat() -> None:
+    state_collection = FakeStateCollection()
+    repository = CorrelationRepository(
+        parsed_collection=object(),
+        edge_collection=object(),
+        state_collection=state_collection,
+        worker_state_key="correlation_worker_v1",
+        correlation_version="correlation-v1",
+        request_id_max_gap=timedelta(minutes=5),
+        resource_id_max_gap=timedelta(minutes=10),
+    )
+    metrics = CorrelationBatchMetrics(
+        events_scanned=4,
+        groups_processed=2,
+        periodic_groups_skipped=0,
+        oversized_groups_skipped=0,
+        edges_inserted=3,
+        candidate_edges=3,
+        inserted_edges=3,
+        skipped_edges=0,
+    )
+
+    import asyncio
+
+    asyncio.run(repository.heartbeat(metrics))
+
+    assert state_collection.document["worker"] == "correlation_worker_v1"
+    assert state_collection.document["last_batch_count"] == 4
+    assert state_collection.document["last_edges_inserted"] == 3
+    assert state_collection.document["correlation_version"] == "correlation-v1"

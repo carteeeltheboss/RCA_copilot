@@ -35,6 +35,8 @@ class CorrelationWorker:
         repository = CorrelationRepository(
             parsed_collection=database[self.config.parsed_logs_collection],
             edge_collection=database[self.config.event_edges_collection],
+            state_collection=database[self.config.worker_state_collection],
+            worker_state_key=self.config.worker_state_key,
             correlation_version=self.config.correlation_version,
             request_id_max_gap=timedelta(seconds=self.config.request_id_max_gap_seconds),
             resource_id_max_gap=timedelta(seconds=self.config.resource_id_max_gap_seconds),
@@ -45,11 +47,13 @@ class CorrelationWorker:
         await repository.ensure_indexes()
         await self._client.admin.command("ping")
         self._mark_healthy()
+        await repository.heartbeat()
 
         try:
             while not self._stopping:
-                await repository.process_batch(self.config.batch_size)
+                metrics = await repository.process_batch(self.config.batch_size)
                 self._mark_healthy()
+                await repository.heartbeat(metrics)
                 await asyncio.sleep(self.config.poll_interval_seconds)
         finally:
             self._client.close()

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pymongo import ASCENDING, IndexModel
@@ -96,10 +96,11 @@ class RCARepository:
         )
 
     async def system_summary(self) -> dict[str, Any]:
-        raw_count, parsed_count, edge_count, candidate_count, enriched_count, active_providers = await _gather(
+        raw_count, parsed_count, edge_count, incident_count, candidate_count, enriched_count, active_providers = await _gather(
             self.raw_logs.count_documents({}),
             self.parsed_logs.count_documents({"parse_status": "success"}),
             self.event_edges.count_documents({}),
+            self.incidents.count_documents({}),
             self.incidents.count_documents({"status": "candidate"}),
             self.incidents.count_documents({"status": "enriched"}),
             self.provider_configs.count_documents({"status": "active", "enabled": True}),
@@ -110,6 +111,7 @@ class RCARepository:
                 "raw_logs": raw_count,
                 "parsed_events": parsed_count,
                 "correlation_edges": edge_count,
+                "incidents": incident_count,
                 "candidate_incidents": candidate_count,
                 "enriched_incidents": enriched_count,
                 "active_providers": active_providers,
@@ -157,6 +159,9 @@ class RCARepository:
             result[provider_type] = {
                 "status": provider.get("status", "unconfigured") if provider else "unconfigured",
                 "display_name": provider.get("display_name") if provider else "Not configured",
+                "provider_kind": provider.get("provider_kind") if provider else None,
+                "model_name": provider.get("model_name") if provider else None,
+                "last_test_status": provider.get("last_test_status") if provider else None,
             }
         return result
 
@@ -167,13 +172,43 @@ class RCARepository:
             health.append({"component": "MongoDB", "status": "healthy", "endpoint": "configured MongoDB", "enabled": True})
         except Exception as exc:
             health.append({"component": "MongoDB", "status": "unavailable", "endpoint": "configured MongoDB", "enabled": True, "last_error": str(exc)[:160]})
-        for stage in await self.pipeline_state():
-            if stage["name"] in {"parser", "correlation", "incident detection", "enrichment"}:
-                health.append({"component": stage["name"], "status": stage["status"], "latest_successful_check": stage["latest_activity_time"], "enabled": True})
+        state_rows = await self.worker_state.find({}).to_list(length=100)
+        state_by_worker = {str(item.get("worker") or item.get("_id")): item for item in state_rows}
+        latest_raw = await self.raw_logs.find({"received_at": {"$exists": True}}).sort("received_at", -1).limit(1).to_list(length=1)
+        health.append(
+            {
+                "component": "collector",
+                "status": "healthy" if latest_raw else "unknown",
+                "endpoint": "raw log ingestion",
+                "latest_successful_check": _json_safe(latest_raw[0].get("received_at")) if latest_raw else None,
+                "enabled": True,
+            }
+        )
+        worker_components = [
+            ("parser-worker", "parser_worker_v1"),
+            ("correlation-worker", "correlation_worker_v1"),
+            ("incident-worker", "incident_worker_v1"),
+            ("enrichment-worker", "enrichment_worker_v1"),
+        ]
+        for component, key in worker_components:
+            health.append(_worker_health_row(component, state_by_worker.get(key)))
         providers = await self.provider_configs.find({"active": True}).to_list(length=100)
         for provider_type in ["llm", "embedding", "reranker", "vector_store"]:
             provider = next((item for item in providers if item.get("provider_type") == provider_type), None)
             health.append(_provider_health_row(provider_type, provider))
+        llm_provider = next((item for item in providers if item.get("provider_type") == "llm"), None)
+        if llm_provider and llm_provider.get("provider_kind") == "ollama":
+            health.append(
+                {
+                    "component": "MSI Ollama reachability",
+                    "status": "healthy" if llm_provider.get("last_test_status") == "success" else "degraded",
+                    "endpoint": llm_provider.get("base_url"),
+                    "latest_successful_check": _json_safe(llm_provider.get("last_tested_at")),
+                    "response_latency": llm_provider.get("last_test_latency_ms"),
+                    "last_error": llm_provider.get("last_test_error"),
+                    "enabled": bool(llm_provider.get("enabled")),
+                }
+            )
         return {"components": health}
 
     async def list_incidents(self, filters: dict[str, Any], sort: str, page: int, page_size: int) -> dict[str, Any]:
@@ -456,12 +491,37 @@ def _worker_status(worker: dict[str, Any] | None, default: str) -> str:
     return "healthy" if worker.get("updated_at") or worker.get("last_id") else "unknown"
 
 
+def _worker_health_row(component: str, worker: dict[str, Any] | None) -> dict[str, Any]:
+    if not worker:
+        return {"component": component, "status": "unknown", "enabled": True}
+    updated_at = worker.get("updated_at")
+    status = "healthy"
+    if isinstance(updated_at, datetime):
+        comparable = updated_at if updated_at.tzinfo is not None else updated_at.replace(tzinfo=UTC)
+        if datetime.now(UTC) - comparable > timedelta(seconds=90):
+            status = "degraded"
+    elif updated_at is None:
+        status = "unknown"
+    return {
+        "component": component,
+        "status": status,
+        "endpoint": "worker_state",
+        "latest_successful_check": _json_safe(updated_at),
+        "response_latency": None,
+        "last_error": None,
+        "enabled": True,
+    }
+
+
 def _provider_health_row(provider_type: str, provider: dict[str, Any] | None) -> dict[str, Any]:
     if not provider:
         return {"component": f"{provider_type} provider", "status": "unconfigured", "enabled": False}
+    health_status = "healthy" if provider.get("last_test_status") == "success" else "degraded"
+    if not provider.get("enabled", False):
+        health_status = "disabled"
     return {
         "component": f"{provider_type} provider",
-        "status": provider.get("last_test_status") or provider.get("status", "unknown"),
+        "status": health_status,
         "endpoint": provider.get("base_url"),
         "latest_successful_check": _json_safe(provider.get("last_tested_at")),
         "response_latency": provider.get("last_test_latency_ms"),

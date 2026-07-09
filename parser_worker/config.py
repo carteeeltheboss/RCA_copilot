@@ -24,6 +24,8 @@ class ParserConfig:
     mongo_database: str = "rca_copilot"
     raw_logs_collection: str = "raw_logs"
     parsed_logs_collection: str = "parsed_logs"
+    worker_state_collection: str = "worker_state"
+    worker_state_key: str = "parser_worker_v1"
     parser_version: str = "parser-v1"
     batch_size: int = 100
     poll_interval_seconds: float = 2.0
@@ -39,6 +41,11 @@ class ParserConfig:
                 "MONGO_PARSED_LOGS_COLLECTION",
                 cls.parsed_logs_collection,
             ),
+            worker_state_collection=os.getenv(
+                "MONGO_WORKER_STATE_COLLECTION",
+                cls.worker_state_collection,
+            ),
+            worker_state_key=os.getenv("PARSER_WORKER_STATE_KEY", cls.worker_state_key),
             parser_version=os.getenv("PARSER_VERSION", cls.parser_version),
             batch_size=_env_int("PARSER_BATCH_SIZE", cls.batch_size),
             poll_interval_seconds=_env_float(
@@ -47,4 +54,3 @@ class ParserConfig:
             ),
             health_file=os.getenv("PARSER_HEALTH_FILE", cls.health_file),
         )
-
