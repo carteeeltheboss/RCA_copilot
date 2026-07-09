@@ -31,6 +31,10 @@ backups/
 *.pid
 *.sqlite
 *.sqlite3
+manim_explainer/media/
+manim_explainer/renders/contact_sheet_visual_audit_before.png
+manim_explainer/renders/frames_pass1/
+manim_explainer/renders/godmode_frames/
 
 # Docker / Compose local overrides
 docker-compose.override.yml
