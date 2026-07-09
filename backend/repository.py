@@ -226,6 +226,22 @@ class RCARepository:
         event = await self.parsed_logs.find_one({"_id": _coerce_id(event_id)})
         return _json_safe(event) if event else None
 
+    async def get_incident_evidence(self, incident_id: str, max_events: int = 40, max_edges: int = 80) -> dict[str, Any] | None:
+        incident = await self.get_incident(incident_id)
+        if not incident:
+            return None
+        event_ids = [_coerce_id(str(value)) for value in list(incident.get("event_ids") or [])[:max_events]]
+        edge_ids = [_coerce_id(str(value)) for value in list(incident.get("edge_ids") or [])[:max_edges]]
+        events = await self.parsed_logs.find({"_id": {"$in": event_ids}}).to_list(length=len(event_ids) or 1)
+        edges = await self.event_edges.find({"_id": {"$in": edge_ids}}).to_list(length=len(edge_ids) or 1)
+        return {
+            "incident": incident,
+            "events": [_safe_event_for_evidence(event) for event in events],
+            "edges": [_safe_edge_for_evidence(edge) for edge in edges],
+            "events_truncated": len(incident.get("event_ids") or []) > len(event_ids),
+            "edges_truncated": len(incident.get("edge_ids") or []) > len(edge_ids),
+        }
+
     async def list_providers(self) -> list[dict[str, Any]]:
         providers = await self.provider_configs.find({}).sort([("provider_type", ASCENDING), ("provider_id", ASCENDING), ("config_version", -1)]).to_list(length=500)
         return [_sanitize_provider(item) for item in providers]
@@ -233,6 +249,9 @@ class RCARepository:
     async def active_providers(self) -> list[dict[str, Any]]:
         providers = await self.provider_configs.find({"active": True, "enabled": True}).sort("provider_type", ASCENDING).to_list(length=20)
         return [_sanitize_provider(item) for item in providers]
+
+    async def active_provider(self, provider_type: str) -> dict[str, Any] | None:
+        return await self.provider_configs.find_one({"provider_type": provider_type, "active": True, "enabled": True})
 
     async def get_provider_latest(self, provider_id: str) -> dict[str, Any] | None:
         items = await self.provider_configs.find({"provider_id": provider_id}).sort("config_version", -1).limit(1).to_list(length=1)
@@ -389,6 +408,34 @@ def _graph_node(event: dict[str, Any], seed_event_id: Any) -> dict[str, Any]:
 
 def _graph_edge(edge: dict[str, Any]) -> dict[str, Any]:
     return {"id": str(edge.get("_id")), "source": str(edge.get("source_event_id")), "target": str(edge.get("target_event_id")), "reason": edge.get("reason"), "confidence": edge.get("confidence")}
+
+
+def _safe_event_for_evidence(event: dict[str, Any]) -> dict[str, Any]:
+    message = str(event.get("message") or event.get("summary") or "")
+    return _json_safe(
+        {
+            "id": str(event.get("_id")),
+            "timestamp": event.get("timestamp") or event.get("parsed_at") or event.get("received_at"),
+            "service": event.get("service"),
+            "level": event.get("level"),
+            "event_type": event.get("event_type"),
+            "request_id": event.get("request_id"),
+            "resource_id": event.get("resource_id"),
+            "message": message[:500],
+        }
+    )
+
+
+def _safe_edge_for_evidence(edge: dict[str, Any]) -> dict[str, Any]:
+    return _json_safe(
+        {
+            "id": str(edge.get("_id")),
+            "source_event_id": str(edge.get("source_event_id")),
+            "target_event_id": str(edge.get("target_event_id")),
+            "reason": edge.get("reason"),
+            "confidence": edge.get("confidence"),
+        }
+    )
 
 
 def _sanitize_provider(item: dict[str, Any]) -> dict[str, Any]:

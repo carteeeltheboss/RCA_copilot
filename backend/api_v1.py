@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -126,13 +127,57 @@ async def get_incident_event(
     return event
 
 
-@router.post("/incidents/{incident_id}/explain")
 @router.post("/incidents/{incident_id}/similar")
 async def ai_unavailable(incident_id: str, _: None = Depends(require_internal_token)) -> dict[str, Any]:
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail={"status": "unavailable", "reason": "No active LLM provider configured", "incident_id": incident_id},
     )
+
+
+@router.post("/incidents/{incident_id}/explain")
+async def explain_incident(
+    incident_id: str,
+    _: None = Depends(require_internal_token),
+    repository: RCARepository = Depends(get_rca_repository),
+) -> dict[str, Any]:
+    evidence = await repository.get_incident_evidence(incident_id)
+    if not evidence:
+        raise HTTPException(status_code=404, detail={"error": "incident not found"})
+
+    provider = await repository.active_provider("llm")
+    if not provider:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"status": "unavailable", "reason": "No active LLM provider configured", "incident_id": incident_id},
+        )
+    adapter = registry.get(provider["provider_type"], provider["provider_kind"])
+    if adapter is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"status": "unavailable", "reason": "No supported LLM provider adapter configured", "incident_id": incident_id},
+        )
+
+    package = _build_evidence_package(evidence)
+    result = await adapter.generate(provider, package)
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"status": "unavailable", "reason": "Active LLM provider is unreachable", "incident_id": incident_id},
+        )
+
+    answer_text = str((result.data or {}).get("answer_text") or "") if isinstance(result.data, dict) else str(result.data or "")
+    answer = _parse_answer(answer_text)
+    return {
+        "incident_id": incident_id,
+        "provider": {
+            "provider_id": provider.get("provider_id"),
+            "provider_kind": provider.get("provider_kind"),
+            "model_name": provider.get("model_name"),
+        },
+        "status": "ok",
+        "answer": answer,
+    }
 
 
 @router.get("/providers")
@@ -324,3 +369,106 @@ async def _provider_or_404(repository: RCARepository, provider_id: str) -> dict[
     if not provider:
         raise HTTPException(status_code=404, detail={"error": "provider not found"})
     return provider
+
+
+def _build_evidence_package(evidence: dict[str, Any]) -> dict[str, Any]:
+    incident = evidence["incident"]
+    compact = {
+        "incident_id": incident.get("incident_id"),
+        "severity": incident.get("severity"),
+        "status": incident.get("status"),
+        "seed_reason": incident.get("seed_reason") or incident.get("reason") or incident.get("title"),
+        "service": incident.get("service"),
+        "started_at": incident.get("started_at"),
+        "duration_ms": incident.get("duration_ms"),
+        "event_count": incident.get("event_count", len(incident.get("event_ids") or [])),
+        "edge_count": incident.get("edge_count", len(incident.get("edge_ids") or [])),
+        "involved_services": list(incident.get("services") or []),
+        "request_ids": _unique_compact([incident.get("request_id"), *(incident.get("request_ids") or [])], limit=20),
+        "resource_ids": _unique_compact(incident.get("resource_ids") or [], limit=20),
+        "deterministic_summary": incident.get("summary"),
+        "enrichment": {
+            "root_cause_hypothesis": incident.get("root_cause_hypothesis"),
+            "impact": incident.get("impact"),
+            "recommended_actions": incident.get("recommended_actions"),
+            "enriched_at": incident.get("enriched_at"),
+        },
+        "timeline_events": list(incident.get("timeline") or [])[:30],
+        "event_evidence": evidence.get("events", [])[:40],
+        "correlation_edges": evidence.get("edges", [])[:80],
+        "truncated": {
+            "events": bool(evidence.get("events_truncated")),
+            "edges": bool(evidence.get("edges_truncated")),
+        },
+    }
+    compact["timeline_events"] = [_truncate_nested(item) for item in compact["timeline_events"]]
+    prompt = (
+        "You are RCA Copilot for OpenStack incidents.\n\n"
+        "Use only the evidence provided.\n"
+        "Do not invent services, timestamps, resources, or root causes.\n"
+        "If evidence is insufficient, say so.\n"
+        "Edges are correlations, not proven causality.\n"
+        "Separate facts from hypotheses.\n"
+        "Return concise structured RCA.\n\n"
+        "Return JSON with keys: summary, likely_failure_area, evidence, hypotheses, "
+        "recommended_next_checks, confidence, limitations.\n\n"
+        f"Evidence:\n{json.dumps(compact, default=str, separators=(',', ':'))}"
+    )
+    if len(prompt) > 24000:
+        compact["event_evidence"] = compact["event_evidence"][:20]
+        compact["correlation_edges"] = compact["correlation_edges"][:40]
+        compact["timeline_events"] = compact["timeline_events"][:15]
+        prompt = (
+            "You are RCA Copilot for OpenStack incidents.\n\n"
+            "Use only the evidence provided.\nDo not invent services, timestamps, resources, or root causes.\n"
+            "If evidence is insufficient, say so.\nEdges are correlations, not proven causality.\n"
+            "Separate facts from hypotheses.\nReturn concise structured RCA.\n\n"
+            "Return JSON with keys: summary, likely_failure_area, evidence, hypotheses, recommended_next_checks, confidence, limitations.\n\n"
+            f"Evidence:\n{json.dumps(compact, default=str, separators=(',', ':'))}"
+        )
+    return {"prompt": prompt, "evidence": compact}
+
+
+def _parse_answer(answer_text: str) -> dict[str, Any]:
+    text = answer_text.strip()
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        parsed = None
+    if not isinstance(parsed, dict):
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end > start:
+            try:
+                parsed = json.loads(text[start : end + 1])
+            except ValueError:
+                parsed = None
+    if isinstance(parsed, dict):
+        return parsed
+    return {"answer_text": text}
+
+
+def _unique_compact(values: list[Any], limit: int) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value is None:
+            continue
+        text = str(value)
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def _truncate_nested(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _truncate_nested(val) for key, val in value.items() if str(key).lower() not in {"raw", "raw_log", "full_log", "payload"}}
+    if isinstance(value, list):
+        return [_truncate_nested(item) for item in value[:20]]
+    if isinstance(value, str):
+        return value[:500]
+    return value

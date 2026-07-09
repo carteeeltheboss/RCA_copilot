@@ -9,6 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from backend import main
 from backend.config import get_settings
 from backend.database import get_rca_repository
+from backend.providers.adapters.ollama import OllamaAdapter
 from backend.providers.models import ProviderResult
 from backend.providers.registry import ProviderRegistry
 from backend.providers.security import SecretBox, normalize_and_validate_provider_url
@@ -81,7 +82,16 @@ class FakeCollection:
 
 def _matches(item: dict[str, Any], query: dict[str, Any]) -> bool:
     for key, expected in query.items():
-        if item.get(key) != expected:
+        actual = item.get(key)
+        if isinstance(expected, dict) and "$in" in expected:
+            if actual not in expected["$in"]:
+                return False
+            continue
+        if isinstance(expected, dict) and "$exists" in expected:
+            if (actual is not None) != bool(expected["$exists"]):
+                return False
+            continue
+        if actual != expected:
             return False
     return True
 
@@ -167,12 +177,58 @@ def test_internal_service_token_required() -> None:
     assert response.status_code == 401
 
 
-def test_unavailable_ai_endpoint_returns_structured_503() -> None:
+def _incident(**overrides: Any) -> dict[str, Any]:
+    item = {
+        "incident_id": "incident-1",
+        "severity": "critical",
+        "status": "enriched",
+        "title": "nova compute error",
+        "service": "nova-compute",
+        "started_at": datetime(2026, 7, 9, tzinfo=UTC),
+        "duration_ms": 120000,
+        "event_ids": ["event-1"],
+        "edge_ids": ["edge-1"],
+        "event_count": 1,
+        "edge_count": 1,
+        "services": ["nova-compute", "neutron-server"],
+        "request_ids": ["req-1"],
+        "resource_ids": ["server-1"],
+        "summary": "Deterministic summary",
+        "timeline": [{"timestamp": "2026-07-09T10:00:00Z", "message": "short event", "raw_log": "x" * 2000}],
+    }
+    item.update(overrides)
+    return item
+
+
+def _active_provider(**overrides: Any) -> dict[str, Any]:
+    item = {
+        "provider_id": "llm-unit",
+        "provider_type": "llm",
+        "provider_kind": "ollama",
+        "display_name": "Unit Ollama",
+        "base_url": "http://provider.test",
+        "model_name": "qwen2.5-coder:7b",
+        "enabled": True,
+        "active": True,
+        "status": "active",
+        "timeout_seconds": 5,
+        "retry_count": 0,
+        "verify_tls": False,
+        "capabilities": ["llm", "model_listing"],
+        "config_version": 1,
+        "last_test_status": "success",
+    }
+    item.update(overrides)
+    return item
+
+
+def test_no_provider_explain_returns_structured_503() -> None:
     _set_env()
-    app = main.create_app(lifespan_context=None)
+    repo = _repo()
+    repo.incidents.documents.append(_incident())
 
     async def _request():
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with await _client(repo) as client:
             return await client.post("/api/v1/incidents/incident-1/explain", headers={"X-RCA-Service-Token": "test-token"})
 
     try:
@@ -183,6 +239,23 @@ def test_unavailable_ai_endpoint_returns_structured_503() -> None:
     assert response.status_code == 503
     assert response.json()["detail"]["status"] == "unavailable"
     assert response.json()["detail"]["reason"] == "No active LLM provider configured"
+
+
+def test_incident_not_found_returns_404() -> None:
+    _set_env()
+    repo = _repo()
+    repo.provider_configs.documents.append(_active_provider())
+
+    async def _request():
+        async with await _client(repo) as client:
+            return await client.post("/api/v1/incidents/missing/explain", headers={"X-RCA-Service-Token": "test-token"})
+
+    try:
+        response = _run(_request())
+    finally:
+        _clear_env()
+
+    assert response.status_code == 404
 
 
 def test_secret_box_encrypts_and_decrypts_without_plaintext() -> None:
@@ -376,6 +449,160 @@ def test_provider_capabilities_are_enforced() -> None:
 
     assert result.status == "unavailable"
     assert result.unsupported_capability == "embedding"
+
+
+def test_active_llm_provider_selected_and_structured_response(monkeypatch) -> None:
+    _set_env()
+    repo = _repo()
+    repo.incidents.documents.append(_incident())
+    repo.parsed_logs.documents.append({"_id": "event-1", "service": "nova-compute", "level": "ERROR", "message": "build failed"})
+    repo.event_edges.documents.append({"_id": "edge-1", "source_event_id": "event-1", "target_event_id": "event-1", "reason": "same request"})
+    repo.provider_configs.documents.append(_active_provider(provider_id="llm-active"))
+    seen: dict[str, Any] = {}
+
+    async def generate(self: Any, config: dict[str, Any], evidence_package: dict[str, Any]) -> ProviderResult:
+        seen["provider_id"] = config["provider_id"]
+        seen["evidence"] = evidence_package["evidence"]
+        return ProviderResult(
+            status="success",
+            latency_ms=10,
+            provider_identity="ollama",
+            data={"answer_text": '{"summary":"grounded","likely_failure_area":"nova-compute","evidence":["build failed"],"hypotheses":[],"recommended_next_checks":[],"confidence":"medium","limitations":"unit"}'},
+        )
+
+    monkeypatch.setattr("backend.providers.adapters.ollama.OllamaAdapter.generate", generate)
+
+    async def _request():
+        async with await _client(repo) as client:
+            return await client.post("/api/v1/incidents/incident-1/explain", headers={"X-RCA-Service-Token": "test-token"})
+
+    try:
+        response = _run(_request())
+    finally:
+        _clear_env()
+
+    assert response.status_code == 200
+    assert seen["provider_id"] == "llm-active"
+    body = response.json()
+    assert body["provider"]["model_name"] == "qwen2.5-coder:7b"
+    assert body["answer"]["summary"] == "grounded"
+
+
+def test_provider_unreachable_returns_503(monkeypatch) -> None:
+    _set_env()
+    repo = _repo()
+    repo.incidents.documents.append(_incident())
+    repo.provider_configs.documents.append(_active_provider())
+
+    async def generate(self: Any, config: dict[str, Any], evidence_package: dict[str, Any]) -> ProviderResult:
+        return ProviderResult(status="failure", latency_ms=1, error="provider request timed out")
+
+    monkeypatch.setattr("backend.providers.adapters.ollama.OllamaAdapter.generate", generate)
+
+    async def _request():
+        async with await _client(repo) as client:
+            return await client.post("/api/v1/incidents/incident-1/explain", headers={"X-RCA-Service-Token": "test-token"})
+
+    try:
+        response = _run(_request())
+    finally:
+        _clear_env()
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["reason"] == "Active LLM provider is unreachable"
+
+
+def test_evidence_package_excludes_raw_full_log_dump(monkeypatch) -> None:
+    _set_env()
+    repo = _repo()
+    repo.incidents.documents.append(_incident(timeline=[{"message": "kept", "raw": "x" * 169000, "payload": "hidden"}]))
+    repo.parsed_logs.documents.append({"_id": "event-1", "service": "nova-compute", "message": "y" * 2000, "raw_log": "x" * 169000})
+    repo.provider_configs.documents.append(_active_provider())
+    seen: dict[str, Any] = {}
+
+    async def generate(self: Any, config: dict[str, Any], evidence_package: dict[str, Any]) -> ProviderResult:
+        seen["package"] = evidence_package
+        return ProviderResult(status="success", latency_ms=1, data={"answer_text": "plain explanation"})
+
+    monkeypatch.setattr("backend.providers.adapters.ollama.OllamaAdapter.generate", generate)
+
+    async def _request():
+        async with await _client(repo) as client:
+            return await client.post("/api/v1/incidents/incident-1/explain", headers={"X-RCA-Service-Token": "test-token"})
+
+    try:
+        response = _run(_request())
+    finally:
+        _clear_env()
+
+    assert response.status_code == 200
+    package_text = str(seen["package"])
+    assert "raw_log" not in package_text
+    assert "payload" not in package_text
+    assert "x" * 1000 not in package_text
+    assert len(seen["package"]["evidence"]["event_evidence"][0]["message"]) == 500
+    assert response.json()["answer"]["answer_text"] == "plain explanation"
+
+
+def test_ollama_adapter_calls_chat_endpoint_and_handles_success(monkeypatch) -> None:
+    calls: list[dict[str, Any]] = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self) -> dict[str, Any]:
+            return {"model": "qwen2.5-coder:7b", "message": {"content": '{"summary":"ok"}'}, "done": True}
+
+    class FakeClient:
+        def __init__(self, **kwargs: Any) -> None:
+            calls.append({"kwargs": kwargs})
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: Any) -> None:
+            return None
+
+        async def post(self, url: str, json: dict[str, Any]) -> FakeResponse:
+            calls.append({"url": url, "json": json})
+            return FakeResponse()
+
+    monkeypatch.setattr("backend.providers.adapters.ollama.httpx.AsyncClient", FakeClient)
+    result = _run(
+        OllamaAdapter().generate(
+            _active_provider(base_url="http://ollama.test", timeout_seconds=12),
+            {"prompt": "Explain from evidence."},
+        )
+    )
+
+    assert result.success
+    assert calls[0]["kwargs"]["timeout"] == 12.0
+    assert calls[1]["url"] == "http://ollama.test/api/chat"
+    assert calls[1]["json"]["model"] == "qwen2.5-coder:7b"
+    assert result.data["answer_text"] == '{"summary":"ok"}'
+
+
+def test_ollama_adapter_handles_timeout_failure(monkeypatch) -> None:
+    import httpx
+
+    class FakeClient:
+        def __init__(self, **kwargs: Any) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: Any) -> None:
+            return None
+
+        async def post(self, url: str, json: dict[str, Any]) -> object:
+            raise httpx.TimeoutException("too slow")
+
+    monkeypatch.setattr("backend.providers.adapters.ollama.httpx.AsyncClient", FakeClient)
+    result = _run(OllamaAdapter().generate(_active_provider(), {"prompt": "test"}))
+
+    assert result.status == "failure"
+    assert result.error == "provider request timed out"
 
 
 def await_count(rows: list[dict[str, Any]], action: str) -> int:
