@@ -1,0 +1,317 @@
+{
+  "backend_url": "http://127.0.0.1:8000",
+  "captured_at": "20260709T115513Z",
+  "counts": {
+    "enriched_incidents": 2256,
+    "event_edges": 26463,
+    "incidents": 2256,
+    "parsed_logs": 141855,
+    "raw_logs": 213263
+  },
+  "provider_status": {
+    "items": [
+      {
+        "activated_at": "2026-07-09T10:05:50.654000",
+        "active": true,
+        "api_key_masked": "",
+        "base_url": "http://100.125.17.77:11434",
+        "capabilities": [
+          "llm",
+          "model_listing"
+        ],
+        "config_version": 1,
+        "created_at": "2026-07-09T10:05:32.777000",
+        "created_by": "horizon",
+        "display_name": "MSI Ollama GPU",
+        "enabled": true,
+        "extra_config": {},
+        "last_test_error": null,
+        "last_test_latency_ms": 489,
+        "last_test_status": "success",
+        "last_tested_at": "2026-07-09T10:05:42.339000",
+        "model_name": "qwen2.5-coder:7b",
+        "provider_id": "llm-ee23b2007292",
+        "provider_kind": "ollama",
+        "provider_type": "llm",
+        "retry_count": 1,
+        "status": "active",
+        "timeout_seconds": 90,
+        "updated_at": "2026-07-09T10:05:50.654000",
+        "updated_by": "horizon",
+        "verify_tls": false
+      }
+    ]
+  },
+  "system_health": {
+    "components": [
+      {
+        "component": "RCA backend",
+        "enabled": true,
+        "endpoint": "localhost",
+        "status": "healthy"
+      },
+      {
+        "component": "MongoDB",
+        "enabled": true,
+        "endpoint": "configured MongoDB",
+        "status": "healthy"
+      },
+      {
+        "component": "collector",
+        "enabled": true,
+        "endpoint": "raw log ingestion",
+        "latest_successful_check": "2026-07-09T11:55:15.640000",
+        "status": "healthy"
+      },
+      {
+        "component": "parser-worker",
+        "enabled": true,
+        "endpoint": "worker_state",
+        "last_error": null,
+        "latest_successful_check": "2026-07-09T11:55:00.909000",
+        "response_latency": null,
+        "status": "healthy"
+      },
+      {
+        "component": "correlation-worker",
+        "enabled": true,
+        "endpoint": "worker_state",
+        "last_error": null,
+        "latest_successful_check": "2026-07-09T11:55:16.072000",
+        "response_latency": null,
+        "status": "healthy"
+      },
+      {
+        "component": "incident-worker",
+        "enabled": true,
+        "endpoint": "worker_state",
+        "last_error": null,
+        "latest_successful_check": "2026-07-09T11:55:15.298000",
+        "response_latency": null,
+        "status": "healthy"
+      },
+      {
+        "component": "enrichment-worker",
+        "enabled": true,
+        "endpoint": "worker_state",
+        "last_error": null,
+        "latest_successful_check": "2026-07-09T11:55:16.383000",
+        "response_latency": null,
+        "status": "healthy"
+      },
+      {
+        "component": "llm provider",
+        "enabled": true,
+        "endpoint": "http://100.125.17.77:11434",
+        "last_error": null,
+        "latest_successful_check": "2026-07-09T10:05:42.339000",
+        "response_latency": 489,
+        "status": "healthy"
+      },
+      {
+        "component": "embedding provider",
+        "enabled": false,
+        "status": "unconfigured"
+      },
+      {
+        "component": "reranker provider",
+        "enabled": false,
+        "status": "unconfigured"
+      },
+      {
+        "component": "vector_store provider",
+        "enabled": false,
+        "status": "unconfigured"
+      },
+      {
+        "component": "MSI Ollama reachability",
+        "enabled": true,
+        "endpoint": "http://100.125.17.77:11434",
+        "last_error": null,
+        "latest_successful_check": "2026-07-09T10:05:42.339000",
+        "response_latency": 489,
+        "status": "healthy"
+      }
+    ]
+  },
+  "system_summary": {
+    "ai_availability": {
+      "embedding": {
+        "display_name": "Not configured",
+        "last_test_status": null,
+        "model_name": null,
+        "provider_kind": null,
+        "status": "unconfigured"
+      },
+      "llm": {
+        "display_name": "MSI Ollama GPU",
+        "last_test_status": "success",
+        "model_name": "qwen2.5-coder:7b",
+        "provider_kind": "ollama",
+        "status": "active"
+      },
+      "reranker": {
+        "display_name": "Not configured",
+        "last_test_status": null,
+        "model_name": null,
+        "provider_kind": null,
+        "status": "unconfigured"
+      },
+      "vector_store": {
+        "display_name": "Not configured",
+        "last_test_status": null,
+        "model_name": null,
+        "provider_kind": null,
+        "status": "unconfigured"
+      }
+    },
+    "counts": {
+      "active_providers": 1,
+      "candidate_incidents": 0,
+      "correlation_edges": 26463,
+      "enriched_incidents": 2256,
+      "incidents": 2256,
+      "parsed_events": 141855,
+      "raw_logs": 213263
+    },
+    "pipeline": [
+      {
+        "latest_activity_time": "2026-07-09T11:55:13.616000",
+        "name": "journald",
+        "processed_count": 213263,
+        "status": "unknown"
+      },
+      {
+        "latest_activity_time": "2026-07-09T11:55:13.616000",
+        "name": "collector",
+        "processed_count": 213263,
+        "status": "unknown"
+      },
+      {
+        "latest_activity_time": "2026-07-09T11:55:15.640000",
+        "name": "ingestion API",
+        "processed_count": 213273,
+        "status": "healthy"
+      },
+      {
+        "latest_activity_time": "2026-07-09T11:55:15.640000",
+        "name": "raw logs",
+        "processed_count": 213273,
+        "status": "healthy"
+      },
+      {
+        "latest_activity_time": "2026-07-09T11:55:00.896000",
+        "name": "parser",
+        "processed_count": 141855,
+        "status": "healthy"
+      },
+      {
+        "latest_activity_time": "2026-07-09T11:55:00.896000",
+        "name": "parsed events",
+        "processed_count": 141855,
+        "status": "healthy"
+      },
+      {
+        "latest_activity_time": "2026-07-09T11:55:02.017000",
+        "name": "correlation",
+        "processed_count": 26463,
+        "status": "healthy"
+      },
+      {
+        "latest_activity_time": "2026-07-09T11:55:02.017000",
+        "name": "event graph",
+        "processed_count": 26463,
+        "status": "healthy"
+      },
+      {
+        "latest_activity_time": "2026-07-09T10:27:10.747000",
+        "name": "incident detection",
+        "processed_count": 2256,
+        "status": "healthy"
+      },
+      {
+        "latest_activity_time": "2026-07-09T10:27:11.009000",
+        "name": "enrichment",
+        "processed_count": 2256,
+        "status": "healthy"
+      }
+    ],
+    "recent_incidents": [
+      {
+        "duration_ms": 0,
+        "edge_count": 0,
+        "enrichment_status": "enriched",
+        "event_count": 1,
+        "incident_id": "incident-aba5052bbe8e0de1165fdab7",
+        "involved_services": [
+          "devstack@neutron-api.service"
+        ],
+        "primary_service": "devstack@neutron-api.service",
+        "severity": "ERROR",
+        "started_at": "2026-07-08T08:11:54.099000",
+        "status": "enriched",
+        "title": "devstack@neutron-api.service: INFO neutron.pecan_wsgi.hooks.translation [None req-9b251d36-9913-4f73-8e41-bce107a69f9d admin admin] GET failed (cli..."
+      },
+      {
+        "duration_ms": 0,
+        "edge_count": 0,
+        "enrichment_status": "enriched",
+        "event_count": 1,
+        "incident_id": "incident-bf130594f00c45923a54e070",
+        "involved_services": [
+          "devstack@neutron-api.service"
+        ],
+        "primary_service": "devstack@neutron-api.service",
+        "severity": "ERROR",
+        "started_at": "2026-07-08T08:11:50.892000",
+        "status": "enriched",
+        "title": "devstack@neutron-api.service: INFO neutron.pecan_wsgi.hooks.translation [None req-e70376ac-0095-4c0d-a875-3838ae211489 admin admin] GET failed (cli..."
+      },
+      {
+        "duration_ms": 0,
+        "edge_count": 0,
+        "enrichment_status": "enriched",
+        "event_count": 1,
+        "incident_id": "incident-600bd73d59e2f5fdc51e2193",
+        "involved_services": [
+          "devstack@n-cond-cell1.service"
+        ],
+        "primary_service": "devstack@n-cond-cell1.service",
+        "severity": "ERROR",
+        "started_at": "2026-07-08T08:10:51.692000",
+        "status": "enriched",
+        "title": "devstack@n-cond-cell1.service: DEBUG cotyledon.oslo_config_glue [-] oslo_limit.timeout = None {{(pid=110819) log_opt_values /opt/stack/data/venv/lib..."
+      },
+      {
+        "duration_ms": 0,
+        "edge_count": 0,
+        "enrichment_status": "enriched",
+        "event_count": 1,
+        "incident_id": "incident-110b02d9656035f845053baf",
+        "involved_services": [
+          "devstack@n-cond-cell1.service"
+        ],
+        "primary_service": "devstack@n-cond-cell1.service",
+        "severity": "ERROR",
+        "started_at": "2026-07-08T08:10:51.690000",
+        "status": "enriched",
+        "title": "devstack@n-cond-cell1.service: DEBUG cotyledon.oslo_config_glue [-] vendordata_dynamic_auth.timeout = None {{(pid=110819) log_opt_values /opt/stack/..."
+      },
+      {
+        "duration_ms": 0,
+        "edge_count": 0,
+        "enrichment_status": "enriched",
+        "event_count": 1,
+        "incident_id": "incident-bf91f445f4625581ebc5eb3f",
+        "involved_services": [
+          "devstack@n-cond-cell1.service"
+        ],
+        "primary_service": "devstack@n-cond-cell1.service",
+        "severity": "ERROR",
+        "started_at": "2026-07-08T08:10:51.689000",
+        "status": "enriched",
+        "title": "devstack@n-cond-cell1.service: DEBUG cotyledon.oslo_config_glue [-] service_user.timeout = None {{(pid=110819) log_opt_values /opt/stack/data/venv/l..."
+      }
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "edge_count": 0,
+  "event_count": 1,
+  "incident_id": "incident-ad2ed1748cf3e9efe9b1cedd",
+  "service": "devstack@n-api.service",
+  "severity": "ERROR",
+  "status": "enriched"
+}

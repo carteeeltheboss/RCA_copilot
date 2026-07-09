@@ -1,0 +1,25 @@
+{
+  "ai_explain_http_status": 200,
+  "ai_explain_status": "ok",
+  "checks": [
+    "PASS - incident detail endpoint returned data",
+    "PASS - incident is enriched",
+    "FAIL - detected service is plausible: devstack@n-api.service",
+    "PASS - event count is 1",
+    "PASS - graph has 1 node(s)",
+    "PASS - graph endpoint status 200",
+    "PASS - timeline has 1 item(s)",
+    "PASS - AI explain status is ok",
+    "PASS - AI explanation returned content"
+  ],
+  "detected_service": "devstack@n-api.service",
+  "edge_count": 0,
+  "event_count": 1,
+  "graph_edge_count": 0,
+  "graph_node_count": 1,
+  "incident_id": "incident-ad2ed1748cf3e9efe9b1cedd",
+  "report_path": "/opt/stack/RCA_copilot/validation/results/incident_incident-ad2ed1748cf3e9efe9b1cedd_report.md",
+  "severity": "ERROR",
+  "status": "enriched",
+  "timeline_event_count": 1
+}

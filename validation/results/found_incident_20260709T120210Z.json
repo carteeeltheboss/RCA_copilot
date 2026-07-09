@@ -1,0 +1,8 @@
+{
+  "edge_count": 0,
+  "event_count": 1,
+  "incident_id": "incident-6858970b77b6d97e496d34a5",
+  "service": "devstack@n-cpu.service",
+  "severity": "ERROR",
+  "status": "enriched"
+}

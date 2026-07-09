@@ -1,0 +1,36 @@
+{
+  "backend_url": "http://127.0.0.1:8000",
+  "boot_id": "validation-boot-88946321df4a",
+  "ingest_response": {
+    "duplicate_count": 0,
+    "inserted_count": 2,
+    "received_count": 2
+  },
+  "injected_at": "2026-07-09T11:56:16.727583+00:00",
+  "message_fragment": "Build failed due to timeout",
+  "records": [
+    {
+      "PRIORITY": "6",
+      "SYSLOG_IDENTIFIER": "nova-compute",
+      "_SYSTEMD_UNIT": "devstack@n-cpu.service",
+      "__REALTIME_TIMESTAMP": 1783598176727583,
+      "boot_id": "validation-boot-88946321df4a",
+      "journal_cursor": "s=validation;i=88946321df4a;n=1",
+      "message": "2026-07-09T11:56:16.727583+00:00 INFO nova.compute.manager [req-65471367-8b41-4d5c-8972-90dfea26bac1 admin validation] Starting build for instance 30dcbe19-ef94-45b4-923e-b63dd230b7df request_id=req-65471367-8b41-4d5c-8972-90dfea26bac1",
+      "unit": "devstack@n-cpu.service"
+    },
+    {
+      "PRIORITY": "3",
+      "SYSLOG_IDENTIFIER": "nova-compute",
+      "_SYSTEMD_UNIT": "devstack@n-cpu.service",
+      "__REALTIME_TIMESTAMP": 1783598177727583,
+      "boot_id": "validation-boot-88946321df4a",
+      "journal_cursor": "s=validation;i=88946321df4a;n=2",
+      "message": "2026-07-09T11:56:17.727583+00:00 ERROR nova.compute.manager [req-65471367-8b41-4d5c-8972-90dfea26bac1 admin validation] Build failed due to timeout for instance 30dcbe19-ef94-45b4-923e-b63dd230b7df request_id=req-65471367-8b41-4d5c-8972-90dfea26bac1",
+      "unit": "devstack@n-cpu.service"
+    }
+  ],
+  "request_id": "req-65471367-8b41-4d5c-8972-90dfea26bac1",
+  "resource_id": "30dcbe19-ef94-45b4-923e-b63dd230b7df",
+  "unit": "devstack@n-cpu.service"
+}
