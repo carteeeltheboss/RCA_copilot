@@ -117,21 +117,27 @@
 \institute[Huawei Cloud Team] 
 {
   \inst{1} EMSI, 4th Year IA \& DATA -- Summer Internship @ Huawei  \\
-  Supervisor: HINGER Anass\\
+  \textbf{Supervisor: HINGER Anass\\}
   Karim.Hanfaoui@emsi-edu.ma
 }
 
 \date[JUL 2026] 
 {Huawei , Casablanca, July 2026}
 \titlegraphic{
-    \begin{textblock*}{2cm}(8cm, -7.4cm) 
+    \begin{textblock*}{2cm}(8.3cm, -7cm) 
         \includegraphics[height=0.7cm]{logo} 
     \end{textblock*}
-    \begin{textblock*}{2cm}(0cm, -7.7cm) 
+    \begin{textblock*}{2cm}(0cm, -7.2cm) 
         \includegraphics[height=1.2cm]{huaweii} 
     \end{textblock*}
 }
-\AtBeginSection[]{}
+\AtBeginSection[]{
+  \begin{frame}
+    \frametitle{Table of Contents}
+    \small
+    \tableofcontents[currentsection]
+  \end{frame}
+}
 
 \begin{document}
 
@@ -146,6 +152,11 @@
 \tableofcontents
 \end{frame}
 
+\begin{frame}[allowframebreaks]{List of Figures}
+\slidepurpose{List all diagrams and figures presented in the report}{Navigation / global framing}
+\dynamiclistoffigures
+\end{frame}
+
 \section{Problem Statement and Methodology}
 
 \begin{frame}{Problem Statement}
@@ -153,6 +164,61 @@
     \begin{alertblock}{Central Research Question}
         OpenStack deployments split every user operation across many independent services, each producing its own logs, request IDs and timestamps. When a failure happens deep in that chain, how do we design a local-first system that continuously ingests raw journald evidence, reconstructs it as a correlation graph, and produces a bounded, explainable root-cause package -- reasoned over by a fully local, open-weight LLM -- without ever sending infrastructure data outside the organization's own machines?
     \end{alertblock}
+\end{frame}
+
+\begin{frame}{Segmentation of the Problem}
+\slidepurpose{Break the central question into four distinct engineering sub-problems}{Scientific framing}
+\centering
+\begin{adjustbox}{max width=0.98\linewidth, max height=0.50\textheight}
+\begin{tikzpicture}[>=Latex, font=\scriptsize, align=center,
+    stage/.style={draw, thick, rounded corners=4pt, minimum width=2.4cm,
+                  minimum height=1.6cm, inner sep=4pt, font=\scriptsize\bfseries},
+    challenge/.style={font=\tiny, text width=2.6cm, align=center, gray!80!black},
+    arr/.style={->, thick, line width=1.2pt, draw=gray!70}
+]
+    % Stage 1
+    \node[stage, fill=blue!12] (s1) at (0,0)
+        {1. Live\\Ingestion};
+    \node[challenge, below=0.25cm of s1] (c1)
+        {Stream from \texttt{journald}\\crash-safe cursor\\batch + ACK delivery};
+
+    % Stage 2
+    \node[stage, fill=violet!12] (s2) at (3.6,0)
+        {2. Structuring\\\& Storage};
+    \node[challenge, below=0.25cm of s2] (c2)
+        {Regex parsing\\field extraction\\MongoDB persistence};
+
+    % Stage 3
+    \node[stage, fill=orange!12] (s3) at (7.2,0)
+        {3. Graph\\Correlation};
+    \node[challenge, below=0.25cm of s3] (c3)
+        {Edge rules (req / resource)\\incident detection\\evidence package};
+
+    % Stage 4
+    \node[stage, fill=green!12] (s4) at (10.8,0)
+        {4. AI\\Reasoning};
+    \node[challenge, below=0.25cm of s4] (c4)
+        {Embeddings + RAG\\local LLM (deepseek-r1)\\Chain-of-Thought};
+
+    % Arrows
+    \draw[arr] (s1) -- (s2);
+    \draw[arr] (s2) -- (s3);
+    \draw[arr] (s3) -- (s4);
+
+    % Input / Output labels
+    \node[font=\tiny\itshape, left=0.35cm of s1, text width=1.4cm, align=center] {raw live\\OpenStack logs};
+    \node[font=\tiny\itshape, right=0.35cm of s4, text width=1.6cm, align=center] {explainable\\RCA answer};
+
+\end{tikzpicture}
+\end{adjustbox}
+\vspace{0.15cm}
+{\footnotesize
+\begin{itemize}
+    \item \textbf{Stage 1:} logs never stop -- ingestion must be live, resumable, and crash-safe.
+    \item \textbf{Stage 2:} raw text is unusable -- the parser extracts structured, queryable fields.
+    \item \textbf{Stage 3:} ``what led to what'' is a graph problem, not a table filter.
+    \item \textbf{Stage 4:} a local, open-weight model reasons over evidence -- never raw logs.
+\end{itemize}}
 \end{frame}
 
 \begin{frame}{Methodology: Agile Approach (Scrum)}
@@ -165,9 +231,9 @@
 
         \draw[thick, ->] (sprint1) -- (sprint2);
         \draw[thick, ->] (sprint2) -- (sprint3);
-        \draw[thick, ->] (sprint3.south) |- ++(0,-0.5) -| (sprint1.south) node[pos=0.25, below] {Continuous refinement};
+        \draw[thick, ->] (sprint3.south) -- ++(0,-0.5) -| (sprint1.south) node[pos=0.25, below] {Continuous refinement};
 
-        \node[draw, circle, fill=green!20, below of=sprint2, yshift=-1.5cm] (delivery) {Working\\Evidence\\Pipeline};
+        \node[draw, circle, fill=green!20, below of=sprint2, yshift=-1.5cm, align=center] (delivery) {Working\\Evidence\\Pipeline};
         \draw[thick, ->] (sprint3) |- (delivery);
     \end{tikzpicture}
     \begin{itemize}
@@ -177,9 +243,7 @@
 \end{frame}
 
 \begin{frame}{Project Management --- Task Table}
-    \slidepurpose{Detail the tasks, their duration and the exact type of temporal link}{Organization / planning}
-    \textbf{The table below refines the plan with lags and PERT relations.}
-    \centering
+    
     \scriptsize
     \renewcommand{\arraystretch}{1.1}
     \begin{adjustbox}{max width=0.98\textwidth}
@@ -201,7 +265,6 @@
         \textbf{M} & Final report, demo \& presentation & 5 d & L (0FD), D (0FD) \\ \hline
     \end{tabular}
     \end{adjustbox}
-
     \vspace{0.15cm}
     \tiny
     \begin{block}{Notation}
@@ -364,7 +427,7 @@
 \slidepurpose{Introduce the platform this project operates on}{Technical context}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.40\textheight}
-\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\small}]
+\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\small, align=center}]
     \node[draw, rounded corners, dashed, minimum width=9.5cm, minimum height=4.2cm, fill=blue!3] at (4.5,2) {};
     \node[font=\bfseries\small] at (4.5,3.9) {OpenStack -- modular open-source cloud platform};
     \node[draw, rectangle, rounded corners, fill=blue!12, minimum width=2cm] (nova) at (1.3,2.8) {Nova\\Compute};
@@ -393,7 +456,7 @@
 \slidepurpose{Motivate why root-cause analysis needs automated assistance}{Technical context}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.42\textheight}
-\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, rectangle, fill=blue!12, minimum width=1.7cm] (api) at (0,2) {Nova API};
     \node[draw, rectangle, fill=blue!12, minimum width=1.7cm] (key) at (2.6,2.9) {Keystone};
     \node[draw, rectangle, fill=blue!12, minimum width=1.7cm] (sch) at (2.6,1.1) {Scheduler};
@@ -424,7 +487,7 @@
 \slidepurpose{Explain why logs are centralized through journald}{Pipeline -- ingestion}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.40\textheight}
-\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, rectangle, fill=blue!12, minimum width=1.5cm] (napi) at (0.3,2.6) {nova-api};
     \node[draw, rectangle, fill=blue!12, minimum width=1.5cm] (ncpu) at (2.0,2.6) {nova-cpu};
     \node[draw, rectangle, fill=blue!12, minimum width=1.5cm] (neu) at (3.7,2.6) {neutron};
@@ -452,7 +515,7 @@
 \slidepurpose{Explain why ingestion is a live streaming problem, not a batch read}{Pipeline -- ingestion}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.40\textheight}
-\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \draw[thick, ->] (0,1.5) -- (10.5,1.5);
     \foreach \x in {1,2.3,3.1,4.6,5.2,6.4,7.8,8.5,9.6}{
         \fill[blue!60] (\x,1.5) circle (2.2pt);
@@ -478,7 +541,7 @@
 \slidepurpose{Show how logs travel from journald to durable storage}{Pipeline -- ingestion}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.40\textheight}
-\begin{tikzpicture}[x=1.15cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1.15cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, cylinder, shape border rotate=90, aspect=0.3, fill=orange!20, minimum width=1.9cm, minimum height=1.1cm] (j) at (0,1.7) {journald};
     \node[draw, rectangle, fill=blue!12, minimum width=1.9cm] (col) at (2.6,1.7) {host\\collector};
     \node[draw, rectangle, fill=blue!12, minimum width=1.9cm] (api) at (5.2,1.7) {FastAPI\\backend};
@@ -502,7 +565,7 @@
 \slidepurpose{Show how raw text becomes structured, queryable events}{Pipeline -- structuring}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.40\textheight}
-\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, cylinder, shape border rotate=90, aspect=0.3, fill=teal!18, minimum width=1.9cm, minimum height=1.1cm] (raw) at (0,1.5) {raw\_logs};
     \node[draw, rectangle, fill=blue!12, minimum width=1.9cm] (parser) at (2.9,1.5) {parser\\worker};
     \node[draw, cylinder, shape border rotate=90, aspect=0.3, fill=violet!15, minimum width=2.1cm, minimum height=1.1cm] (parsed) at (5.8,1.5) {parsed\_logs};
@@ -524,30 +587,43 @@
 \begin{frame}{Project Structure: Why This Layout}
 \slidepurpose{Justify the repository layout and link to the source}{Pipeline -- structuring}
 \centering
-\begin{adjustbox}{max width=0.96\linewidth, max height=0.42\textheight}
-\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize}]
-    \node[draw, rectangle, fill=blue!12, minimum width=1.7cm] (col) at (0.3,2.6) {collector/};
-    \node[draw, rectangle, fill=blue!12, minimum width=1.6cm] (be) at (2.5,2.6) {backend/};
-    \node[draw, rectangle, fill=violet!15, minimum width=2.3cm] (par) at (5.0,2.6) {parser\_worker/};
-    \node[draw, rectangle, fill=violet!15, minimum width=2.7cm] (corr) at (7.9,2.6) {correlation\_worker/};
-    \node[draw, rectangle, fill=orange!15, minimum width=2.3cm] (inc) at (3.4,0.8) {incident\_worker/};
-    \node[draw, rectangle, fill=orange!15, minimum width=2.7cm] (enr) at (6.4,0.8) {enrichment\_worker/};
-    \draw[->, thick] (col) -- (be);
-    \draw[->, thick] (be) -- (par);
-    \draw[->, thick] (par) -- (corr);
-    \draw[->, thick] (corr.south) |- (inc.east);
-    \draw[->, thick] (inc) -- (enr);
-    \node[anchor=west] (qr) at (9.6,2.3) {\includegraphics[width=2.0cm]{qrcode_ghub.png}};
-    \node[font=\tiny, gray, anchor=west, align=left] at (9.55,0.7) {carteeeltheboss/\\RCA\_copilot -- MIT};
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\centering
+\begin{tikzpicture}[>=Latex, font=\scriptsize, node distance=0.4cm and 0.5cm]
+    \node[fill=gray!15, rounded corners, draw, font=\scriptsize\bfseries] (root) {RCA\_copilot/};
+    \node[fill=blue!10, rounded corners, draw, below right=0.2cm and 0.5cm of root] (col) {collector/};
+    \node[fill=blue!10, rounded corners, draw, below=0.1cm of col] (be) {backend/};
+    \node[fill=violet!10, rounded corners, draw, below=0.1cm of be] (par) {parser\_worker/};
+    \node[fill=violet!10, rounded corners, draw, below=0.1cm of par] (corr) {correlation\_worker/};
+    \node[fill=orange!10, rounded corners, draw, below=0.1cm of corr] (inc) {incident\_worker/};
+    \node[fill=orange!10, rounded corners, draw, below=0.1cm of inc] (enr) {enrichment\_worker/};
+    \node[fill=green!10, rounded corners, draw, below=0.1cm of enr] (eng) {engine/};
+    \node[fill=green!10, rounded corners, draw, below=0.1cm of eng] (scr) {scripts/};
+    \node[fill=gray!8, rounded corners, draw, below=0.1cm of scr] (dc) {docker-compose.yml};
+    \node[fill=gray!8, rounded corners, draw, below=0.1cm of dc] (req) {requirements.txt};
+    \draw[->, thick] (root.south) |- (col.west);
+    \draw[->, thick] (root.south) |- (be.west);
+    \draw[->, thick] (root.south) |- (par.west);
+    \draw[->, thick] (root.south) |- (corr.west);
+    \draw[->, thick] (root.south) |- (inc.west);
+    \draw[->, thick] (root.south) |- (enr.west);
+    \draw[->, thick] (root.south) |- (eng.west);
+    \draw[->, thick] (root.south) |- (scr.west);
+    \draw[->, thick] (root.south) |- (dc.west);
+    \draw[->, thick] (root.south) |- (req.west);
 \end{tikzpicture}
-\end{adjustbox}
-\vspace{0.15cm}
-{\footnotesize
-\begin{itemize}
-    \item One folder per pipeline stage: independently testable, independently deployable.
-    \item Python + Docker Compose + pytest -- MIT-licensed, open source.
-    \item Full source and docs -- scan the QR code to open the repository.
-\end{itemize}}
+\end{column}
+\begin{column}{0.44\textwidth}
+\vspace{0.3cm}
+\centering
+\includegraphics[width=5cm]{qrcode_ghub.png}\\[0.1cm]
+{\captionsetup{type=figure,font=tiny,justification=centering}
+\captionof{figure}{GitHub repository QR code}%
+\recordfigureentry{GitHub repository QR code}}
+{\tiny\textcolor{gray}{carteeeltheboss/RCA\_copilot -- MIT Licensed}}
+\end{column}
+\end{columns}
 \end{frame}
 
 \section{Correlation Graph and Evidence Package}
@@ -556,7 +632,7 @@
 \slidepurpose{Justify why correlation is modeled as a graph, not a table}{Correlation -- design}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.42\textheight}
-\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, circle, fill=blue!15] (a) at (0,2.4) {E1};
     \node[draw, circle, fill=blue!15] (b) at (2,3.1) {E2};
     \node[draw, circle, fill=blue!15] (c) at (4,2.5) {E3};
@@ -583,7 +659,7 @@
 \slidepurpose{Define the two deterministic correlation rules}{Correlation -- design}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.42\textheight}
-\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, circle, fill=blue!15] (a) at (0,1.6) {A};
     \node[draw, circle, fill=blue!15] (b) at (2.2,2.2) {B};
     \node[draw, circle, fill=blue!15] (c) at (4.4,1.6) {C};
@@ -608,7 +684,7 @@
 \slidepurpose{Show the engineering fix that keeps the graph readable}{Correlation -- design}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.42\textheight}
-\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\tiny}]
+\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\tiny, align=center}]
     \foreach \i/\ang in {1/90,2/30,3/-30,4/-90,5/-150,6/150}{
         \coordinate (p\i) at ({1.6+1.05*cos(\ang)},{1.9+0.9*sin(\ang)});
     }
@@ -638,7 +714,7 @@
 \slidepurpose{Show how a seed event becomes a bounded incident}{Correlation -- incidents}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.42\textheight}
-\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\tiny}]
+\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\tiny, align=center}]
     \node[draw, circle, fill=red!25, thick] (s) at (4,1.8) {Seed};
     \node[draw, circle, fill=blue!15] (a) at (2,2.8) {E1};
     \node[draw, circle, fill=blue!15] (b) at (6,2.8) {E2};
@@ -666,7 +742,7 @@
 \slidepurpose{Show the deterministic package the AI layer will consume}{Correlation -- evidence}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.40\textheight}
-\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, rectangle, fill=orange!15, minimum width=2.3cm] (sub) at (0,1.6) {bounded\\subgraph};
     \node[draw, rectangle, fill=blue!12, minimum width=2.3cm] (en) at (2.9,1.6) {enrichment\\worker};
     \node[draw, rectangle, fill=green!12, minimum width=1.9cm] (t1) at (6.2,2.6) {timeline};
@@ -695,7 +771,7 @@
 \slidepurpose{Explain why root-cause reasoning benefits from Chain-of-Thought}{AI layer -- reasoning}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.42\textheight}
-\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\tiny}]
+\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\tiny, align=center}]
     \node[draw, rectangle, fill=orange!12, minimum width=2.2cm] (ev) at (0,1.6) {evidence\\package};
     \node[draw, rectangle, fill=gray!8, align=left, minimum width=3.4cm] (h1) at (3.4,2.7) {check E1: token OK\\$\to$ not the cause};
     \node[draw, rectangle, fill=gray!8, align=left, minimum width=3.4cm] (h2) at (3.4,1.6) {check E4: port bind\\timeout $\to$ candidate};
@@ -722,7 +798,7 @@
 \slidepurpose{Introduce the local reasoning model used for explanation}{AI layer -- model choice}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.40\textheight}
-\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1.1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, rectangle, fill=orange!12, minimum width=2.1cm] (ev) at (0,1.5) {evidence\\package};
     \node[draw, rectangle, fill=blue!12, minimum width=1.9cm] (ol) at (2.6,1.5) {Ollama\\runtime};
     \node[draw, rectangle, thick, fill=violet!15, minimum width=2.5cm] (ds) at (5.4,1.5) {deepseek-r1:8b};
@@ -769,11 +845,33 @@
 \end{itemize}}
 \end{frame}
 
+\begin{frame}{Why DeepSeek-R1?}
+\slidepurpose{Explain the rationale behind selecting DeepSeek-R1}{AI layer -- model choice}
+\vspace{0.2cm}
+\begin{columns}[c]
+\begin{column}{0.45\textwidth}
+\footnotesize
+\begin{itemize}
+    \item \textbf{State-of-the-Art Performance.}\\
+    \item \textbf{Open Weights.}\\
+    \item \textbf{Data Sovereignty.}\\
+\end{itemize}
+\end{column}
+\begin{column}{0.55\textwidth}
+\centering
+\includegraphics[width=\linewidth,keepaspectratio]{benchmark.jpg}\\[0.1cm]
+{\captionsetup{type=figure,font=tiny,justification=centering}
+\captionof{figure}{Official benchmark comparison (DeepSeek vs OpenAI o1)}%
+\recordfigureentry{Official benchmark comparison}}
+\end{column}
+\end{columns}
+\end{frame}
+
 \begin{frame}{Hardware: Two Machines, One Pipeline}
 \slidepurpose{Describe the physical machines the pipeline runs on}{AI layer -- infrastructure}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.42\textheight}
-\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, dashed, rounded corners, minimum width=5.6cm, minimum height=3.6cm, fill=blue!4] (mac) at (2.2,1.7) {};
     \node[font=\bfseries\tiny] at (2.2,3.2) {MacBook -- evidence plane};
     \node[draw, rectangle, fill=blue!12, minimum width=1.7cm] at (1.0,2.4) {DevStack};
@@ -800,7 +898,7 @@
 \slidepurpose{Justify the model choice against the available VRAM}{AI layer -- infrastructure}
 \centering
 \begin{adjustbox}{max width=0.9\linewidth, max height=0.36\textheight}
-\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \draw[thick] (0,2) rectangle (8,2.9);
     \node[font=\tiny] at (4,3.15) {RTX 4070 Max-Q -- 8GB VRAM budget};
     \fill[violet!35] (0,2) rectangle (5.6,2.9);
@@ -812,7 +910,8 @@
 \vspace{0.2cm}
 {\footnotesize
 \begin{itemize}
-    \item Quantized \texttt{deepseek-r1:8b} fits comfortably inside 8GB of VRAM.
+    \item \textbf{Size calculation:} $8\text{B params} \times \frac{4\,\text{bits}}{8} = 4\,\text{GB (weights)}$ $+$ ${\sim}1\,\text{GB (KV cache + runtime + Context Window)}$ $\approx$ $\mathbf{6.6\,\textbf{GB}}$ $\subset$ $8\,\text{GB VRAM}$ \checkmark
+    \item Quantized \texttt{deepseek-r1:8b} fits comfortably inside 8GB of VRAM with ${\sim}3$GB headroom.
     \item Retains step-by-step reasoning distilled from the full R1 model.
     \item Right-sized: bigger models overflow this GPU, smaller ones reason worse.
 \end{itemize}}
@@ -824,7 +923,7 @@
 \slidepurpose{State the core data-protection principle of the whole design}{Data sovereignty}
 \centering
 \begin{adjustbox}{max width=0.94\linewidth, max height=0.46\textheight}
-\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, rectangle, fill=red!8, dashed, minimum width=3.4cm] (evd) at (0,2.6) {raw evidence};
     \node[draw, rectangle, fill=red!12, minimum width=3.2cm] (cloud) at (4.4,2.6) {third-party\\cloud API};
     \node[font=\Large, red!70!black] at (2.2,2.6) {$\times$};
@@ -849,7 +948,7 @@
 \slidepurpose{Show every layer of the stack under direct control}{Data sovereignty}
 \centering
 \begin{adjustbox}{max width=0.9\linewidth, max height=0.44\textheight}
-\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize}]
+\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\scriptsize, align=center}]
     \node[draw, thick, rounded corners, minimum width=8.4cm, minimum height=4.6cm] (box) at (4.2,2.2) {};
     \node[font=\bfseries\tiny] at (4.2,4.55) {fully owned, on-premises stack};
     \node[draw, rectangle, fill=gray!10, minimum width=7.6cm] at (4.2,3.7) {hardware -- MacBook + MSI Raider};
@@ -872,7 +971,7 @@
 \slidepurpose{Position what is delivered today against what comes next}{Closure -- PoC status}
 \centering
 \begin{adjustbox}{max width=0.96\linewidth, max height=0.40\textheight}
-\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\tiny}]
+\begin{tikzpicture}[x=1.05cm,y=1cm, every node/.style={font=\tiny, align=center}]
     \node[font=\bfseries\scriptsize, green!35!black] at (4.3,3.0) {Implemented (PoC)};
     \node[draw, rectangle, fill=green!12, minimum width=1.5cm] at (0,2.3) {ingestion};
     \node[draw, rectangle, fill=green!12, minimum width=1.5cm] at (1.65,2.3) {parsing};
