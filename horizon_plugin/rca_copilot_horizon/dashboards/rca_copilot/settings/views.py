@@ -6,6 +6,13 @@ from rca_copilot_horizon.client import RCAClient, RCAClientError
 from rca_copilot_horizon.dashboards.rca_copilot.policy import is_admin
 
 
+def _keystone_roles(request):
+    return tuple(
+        str(getattr(role, "name", role))
+        for role in getattr(getattr(request, "user", None), "roles", [])
+    )
+
+
 class IndexView(views.HorizonTemplateView):
     template_name = "rca_copilot/settings.html"
     page_title = "RCA Copilot Settings"
@@ -16,7 +23,7 @@ class IndexView(views.HorizonTemplateView):
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        client = RCAClient()
+        client = RCAClient(roles=_keystone_roles(request))
         action = request.POST.get("action")
         provider_id = request.POST.get("provider_id")
         try:
@@ -50,7 +57,7 @@ class IndexView(views.HorizonTemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        client = RCAClient()
+        client = RCAClient(roles=_keystone_roles(self.request))
         try:
             providers = client.get("/api/v1/providers").get("items", [])
             histories = {

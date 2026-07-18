@@ -13,7 +13,7 @@ from backend.database import get_rca_repository
 from backend.providers.registry import ProviderRegistry
 from backend.providers.security import SecretBox
 from backend.repository import RCARepository
-from backend.security import require_internal_token
+from backend.security import require_internal_token, require_provider_policy
 
 
 router = APIRouter(prefix="/api/v1")
@@ -206,7 +206,7 @@ async def explain_incident(
 
 @router.get("/providers")
 async def list_providers(
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:list")),
     repository: RCARepository = Depends(get_rca_repository),
 ) -> dict[str, Any]:
     return {"items": await repository.list_providers()}
@@ -215,7 +215,7 @@ async def list_providers(
 @router.post("/providers", status_code=201)
 async def create_provider(
     payload: ProviderPayload,
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:create")),
     repository: RCARepository = Depends(get_rca_repository),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
@@ -225,7 +225,7 @@ async def create_provider(
 
 @router.get("/providers/active")
 async def active_providers(
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:list")),
     repository: RCARepository = Depends(get_rca_repository),
 ) -> dict[str, Any]:
     return {"items": await repository.active_providers()}
@@ -233,7 +233,7 @@ async def active_providers(
 
 @router.get("/providers/health")
 async def provider_health(
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:list")),
     repository: RCARepository = Depends(get_rca_repository),
 ) -> dict[str, Any]:
     return {"providers": await repository.provider_availability()}
@@ -242,7 +242,7 @@ async def provider_health(
 @router.get("/providers/{provider_id}")
 async def get_provider(
     provider_id: str,
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:show")),
     repository: RCARepository = Depends(get_rca_repository),
 ) -> dict[str, Any]:
     provider = await repository.get_provider_latest(provider_id)
@@ -261,7 +261,7 @@ async def get_provider(
 async def update_provider(
     provider_id: str,
     payload: ProviderPayload,
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:update")),
     repository: RCARepository = Depends(get_rca_repository),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
@@ -273,7 +273,7 @@ async def update_provider(
 @router.post("/providers/{provider_id}/test")
 async def test_provider(
     provider_id: str,
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:update")),
     repository: RCARepository = Depends(get_rca_repository),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
@@ -291,7 +291,7 @@ async def test_provider(
 @router.post("/providers/{provider_id}/activate")
 async def activate_provider(
     provider_id: str,
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:activate")),
     repository: RCARepository = Depends(get_rca_repository),
 ) -> dict[str, Any]:
     provider = await _provider_or_404(repository, provider_id)
@@ -304,7 +304,7 @@ async def activate_provider(
 @router.post("/providers/{provider_id}/disable")
 async def disable_provider(
     provider_id: str,
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:update")),
     repository: RCARepository = Depends(get_rca_repository),
 ) -> dict[str, Any]:
     provider = await _provider_or_404(repository, provider_id)
@@ -314,7 +314,7 @@ async def disable_provider(
 @router.get("/providers/{provider_id}/history")
 async def provider_history(
     provider_id: str,
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:show")),
     repository: RCARepository = Depends(get_rca_repository),
 ) -> dict[str, Any]:
     return {"items": await repository.history(provider_id)}
@@ -324,7 +324,7 @@ async def provider_history(
 async def rollback_provider(
     provider_id: str,
     config_version: int,
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:rollback")),
     repository: RCARepository = Depends(get_rca_repository),
 ) -> dict[str, Any]:
     provider = await repository.get_provider_version(provider_id, config_version)
@@ -339,7 +339,7 @@ async def rollback_provider(
 @router.delete("/providers/{provider_id}", status_code=204)
 async def delete_provider(
     provider_id: str,
-    _: None = Depends(require_internal_token),
+    _: None = Depends(require_provider_policy("rca_copilot:providers:delete")),
     repository: RCARepository = Depends(get_rca_repository),
 ) -> Response:
     provider = await _provider_or_404(repository, provider_id)

@@ -145,6 +145,47 @@ def test_duplicate_records_are_ignored_safely() -> None:
     }
 
 
+def test_authenticated_collector_has_an_independent_rate_bucket(monkeypatch) -> None:
+    settings = main.get_settings()
+    monkeypatch.setattr(
+        main,
+        "get_settings",
+        lambda: settings.__class__(
+            **{
+                **settings.__dict__,
+                "rca_internal_service_token": "collector-token",
+                "batch_rate_limit_per_minute": 1,
+            }
+        ),
+    )
+    repository = RawLogRepository(FakeCollection())
+    app = main.create_app(lifespan_context=None)
+    app.dependency_overrides[main.get_repository] = lambda: repository
+    payload = {
+        "records": [{"boot_id": "boot", "journal_cursor": "one", "message": "line"}]
+    }
+
+    async def _post() -> tuple[Response, Response, Response]:
+        async with AsyncClient(
+            transport=ASGITransport(app=app, raise_app_exceptions=True),
+            base_url="http://test",
+        ) as client:
+            collector = await client.post(
+                "/logs/batch",
+                json=payload,
+                headers={"X-RCA-Service-Token": "collector-token"},
+            )
+            operator = await client.post("/logs/batch", json=payload)
+            limited_operator = await client.post("/logs/batch", json=payload)
+            return collector, operator, limited_operator
+
+    collector, operator, limited_operator = asyncio.run(_post())
+
+    assert collector.status_code == 200
+    assert operator.status_code == 200
+    assert limited_operator.status_code == 429
+
+
 def test_raw_record_to_document_keeps_message_exact() -> None:
     record = RawJournalRecord(
         boot_id="boot-1",
@@ -157,3 +198,18 @@ def test_raw_record_to_document_keeps_message_exact() -> None:
 
     assert document["message"] == record.message
     assert document["received_at"] == received_at
+
+
+def test_batch_record_limit_is_enforced() -> None:
+    response = run_request(
+        "POST",
+        "/logs/batch",
+        json={
+            "records": [
+                {"boot_id": "boot", "journal_cursor": str(index), "message": "line"}
+                for index in range(501)
+            ]
+        },
+    )
+
+    assert response.status_code == 413

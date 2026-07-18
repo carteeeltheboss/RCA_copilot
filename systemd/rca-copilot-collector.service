@@ -8,6 +8,7 @@ Group=systemd-journal
 StateDirectory=rca-copilot
 ExecStart=/usr/bin/rca-copilot-collector --config-file /etc/rca-copilot/rca-copilot.conf
 Restart=on-failure
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target

@@ -88,8 +88,8 @@ def test_batch_client_retries_until_success(monkeypatch) -> None:
     attempts = []
     sleeps = []
 
-    def fake_post(url: str, json: dict, timeout: float) -> httpx.Response:
-        attempts.append((url, json, timeout))
+    def fake_post(url: str, json: dict, headers: dict | None, timeout: float) -> httpx.Response:
+        attempts.append((url, json, headers, timeout))
         if len(attempts) == 1:
             raise httpx.ConnectError("temporary failure")
         return httpx.Response(
@@ -104,11 +104,13 @@ def test_batch_client_retries_until_success(monkeypatch) -> None:
         max_attempts=3,
         initial_delay_seconds=0.5,
         max_delay_seconds=2,
+        service_token="collector-token",
         sleep=sleeps.append,
     )
 
     assert client.post_batch([{"journal_cursor": "cursor-1"}]) is True
     assert len(attempts) == 2
+    assert attempts[-1][2] == {"X-RCA-Service-Token": "collector-token"}
     assert sleeps == [0.5]
 
 
@@ -116,8 +118,8 @@ def test_batch_client_stops_after_bounded_attempts(monkeypatch) -> None:
     attempts = []
     sleeps = []
 
-    def fake_post(url: str, json: dict, timeout: float) -> httpx.Response:
-        attempts.append((url, json, timeout))
+    def fake_post(url: str, json: dict, headers: dict | None, timeout: float) -> httpx.Response:
+        attempts.append((url, json, headers, timeout))
         return httpx.Response(503)
 
     monkeypatch.setattr(httpx, "post", fake_post)

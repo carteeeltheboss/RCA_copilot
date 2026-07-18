@@ -8,8 +8,9 @@ from backend.models import InsertResult, RawJournalRecord, raw_record_to_documen
 
 
 class RawLogRepository:
-    def __init__(self, collection: object) -> None:
+    def __init__(self, collection: object, retention_days: int = 30) -> None:
         self.collection = collection
+        self.retention_days = retention_days
 
     async def ensure_indexes(self) -> None:
         await self.collection.create_indexes(
@@ -18,7 +19,12 @@ class RawLogRepository:
                     [("boot_id", ASCENDING), ("journal_cursor", ASCENDING)],
                     unique=True,
                     name="uniq_boot_id_journal_cursor",
-                )
+                ),
+                IndexModel(
+                    [("received_at", ASCENDING)],
+                    expireAfterSeconds=self.retention_days * 86400,
+                    name="ttl_raw_logs_received_at",
+                ),
             ]
         )
 
@@ -54,6 +60,8 @@ class RCARepository:
         worker_state: object,
         provider_configs: object,
         config_audit_log: object,
+        parsed_retention_days: int = 30,
+        edge_retention_days: int = 30,
     ) -> None:
         self.raw_logs = raw_logs
         self.parsed_logs = parsed_logs
@@ -62,8 +70,24 @@ class RCARepository:
         self.worker_state = worker_state
         self.provider_configs = provider_configs
         self.config_audit_log = config_audit_log
+        self.parsed_retention_days = parsed_retention_days
+        self.edge_retention_days = edge_retention_days
 
     async def ensure_indexes(self) -> None:
+        await self.parsed_logs.create_indexes(
+            [
+                IndexModel([("request_id", ASCENDING), ("timestamp", ASCENDING)], name="idx_request_id_timestamp"),
+                IndexModel([("resource_ids", ASCENDING), ("timestamp", ASCENDING)], name="idx_resource_ids_timestamp"),
+                IndexModel([("parsed_at", ASCENDING)], expireAfterSeconds=self.parsed_retention_days * 86400, name="ttl_parsed_logs_parsed_at"),
+            ]
+        )
+        await self.event_edges.create_indexes(
+            [
+                IndexModel([("source_event_id", ASCENDING)], name="idx_source_event_id"),
+                IndexModel([("target_event_id", ASCENDING)], name="idx_target_event_id"),
+                IndexModel([("created_at", ASCENDING)], expireAfterSeconds=self.edge_retention_days * 86400, name="ttl_event_edges_created_at"),
+            ]
+        )
         await self.incidents.create_indexes(
             [
                 IndexModel([("incident_id", ASCENDING)], unique=True, name="uniq_incident_id"),
@@ -303,16 +327,55 @@ class RCARepository:
         incident = await self.get_incident(incident_id)
         if not incident:
             return None
+        seed_id = _coerce_id(str(incident.get("seed_event_id")))
         event_ids = [
             _coerce_id(str(value)) for value in list(incident.get("event_ids") or [])[:max_nodes]
         ]
+        if seed_id not in event_ids:
+            event_ids.insert(0, seed_id)
+
+        # Incident documents are snapshots. Expand from the seed at read time so
+        # edges which arrive shortly after seed detection are visible without a
+        # migration or incident rewrite.
+        discovered = set(event_ids)
+        discovered_order = list(event_ids)
+        frontier = {seed_id}
+        dynamic_edges: list[dict[str, Any]] = []
+        for _depth in range(3):
+            if not frontier or len(discovered) >= max_nodes:
+                break
+            cursor = self.event_edges.find(
+                {
+                    "correlation_version": incident.get("correlation_version", "correlation-v1"),
+                    "$or": [
+                        {"source_event_id": {"$in": list(frontier)}},
+                        {"target_event_id": {"$in": list(frontier)}},
+                    ],
+                }
+            ).limit(max_nodes * 4)
+            adjacent = await cursor.to_list(length=max_nodes * 4)
+            dynamic_edges.extend(adjacent)
+            next_frontier: set[Any] = set()
+            for edge in adjacent:
+                for key in ("source_event_id", "target_event_id"):
+                    value = edge.get(key)
+                    if value is not None and value not in discovered:
+                        discovered.add(value)
+                        discovered_order.append(value)
+                        next_frontier.add(value)
+                        if len(discovered) >= max_nodes:
+                            break
+            frontier = next_frontier
+        event_ids = discovered_order[:max_nodes]
         events = await self.parsed_logs.find({"_id": {"$in": event_ids}}).to_list(
             length=len(event_ids)
         )
         edge_ids = [_coerce_id(str(value)) for value in list(incident.get("edge_ids") or [])]
-        edges = await self.event_edges.find({"_id": {"$in": edge_ids}}).to_list(
+        stored_edges = await self.event_edges.find({"_id": {"$in": edge_ids}}).to_list(
             length=len(edge_ids) or 1
         )
+        edges_by_id = {edge.get("_id"): edge for edge in [*stored_edges, *dynamic_edges]}
+        edges = list(edges_by_id.values())
         event_id_set = {item.get("_id") for item in events}
         visible_edges = [
             edge
@@ -702,6 +765,7 @@ def _worker_health_row(component: str, worker: dict[str, Any] | None) -> dict[st
         "status": status,
         "endpoint": "worker_state",
         "latest_successful_check": _json_safe(updated_at),
+        "last_processed_timestamp": _json_safe(worker.get("last_processed_timestamp")),
         "response_latency": None,
         "last_error": None,
         "enabled": True,

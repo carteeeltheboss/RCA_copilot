@@ -24,6 +24,7 @@ class JournalCollector:
             max_attempts=config.retry_max_attempts,
             initial_delay_seconds=config.retry_initial_delay_seconds,
             max_delay_seconds=config.retry_max_delay_seconds,
+            service_token=config.internal_service_token,
         )
         self.batcher = LogBatcher(
             batch_size=config.batch_size,

@@ -15,6 +15,7 @@ class BatchClient:
     max_attempts: int
     initial_delay_seconds: float
     max_delay_seconds: float
+    service_token: str | None = None
     sleep: Callable[[float], None] = time.sleep
 
     def post_batch(self, records: list[dict[str, Any]]) -> bool:
@@ -25,7 +26,17 @@ class BatchClient:
         payload = {"records": records}
         for attempt in range(1, self.max_attempts + 1):
             try:
-                response = httpx.post(self.url, json=payload, timeout=self.timeout_seconds)
+                headers = (
+                    {"X-RCA-Service-Token": self.service_token}
+                    if self.service_token
+                    else None
+                )
+                response = httpx.post(
+                    self.url,
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout_seconds,
+                )
                 if 200 <= response.status_code < 300:
                     return True
             except httpx.HTTPError:

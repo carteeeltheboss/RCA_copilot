@@ -48,7 +48,8 @@ class CorrelationWorker:
 
         try:
             while not self._stopping:
-                metrics = await repository.process_batch(self.config.batch_size)
+                batches = await repository.process_available_batches(self.config.batch_size)
+                metrics = batches[-1]
                 self._mark_healthy()
                 await repository.heartbeat(metrics)
                 await asyncio.sleep(self.config.poll_interval_seconds)

@@ -52,7 +52,6 @@ class CorrelationRepository:
         self.resource_rule = CorrelationRule("shared_resource_id", 0.9, resource_id_max_gap)
         self.max_events_per_group = max_events_per_group
         self.skip_periodic_groups = skip_periodic_groups
-        self._last_seen_id: Any | None = None
 
     async def ensure_indexes(self) -> None:
         await self.edge_collection.create_indexes(
@@ -94,14 +93,14 @@ class CorrelationRepository:
         )
 
     async def fetch_batch(self, batch_size: int) -> list[dict[str, Any]]:
+        state = await self.state_collection.find_one({"_id": self.worker_state_key})
+        last_seen_id = state.get("last_id") if state else None
         query: dict[str, Any] = {"parse_status": "success"}
-        if self._last_seen_id is not None:
-            query["_id"] = {"$gt": self._last_seen_id}
+        if last_seen_id is not None:
+            query["_id"] = {"$gt": last_seen_id}
 
         cursor = self.parsed_collection.find(query).sort("_id", ASCENDING).limit(batch_size)
         documents = await cursor.to_list(length=batch_size)
-        if documents:
-            self._last_seen_id = documents[-1]["_id"]
         return documents
 
     async def process_batch(self, batch_size: int) -> CorrelationBatchMetrics:
@@ -171,6 +170,22 @@ class CorrelationRepository:
             edges_inserted = int(result.upserted_count)
             skipped_edges += len(operations) - edges_inserted
 
+        # Advance only after every edge for the batch has been durably written.
+        # The incident worker uses this checkpoint as its correlation barrier.
+        if events:
+            await self.state_collection.update_one(
+                {"_id": self.worker_state_key},
+                {
+                    "$set": {
+                        "last_id": events[-1]["_id"],
+                        "last_processed_timestamp": events[-1].get("timestamp"),
+                        "updated_at": datetime.now(UTC),
+                    },
+                    "$setOnInsert": {"worker": self.worker_state_key},
+                },
+                upsert=True,
+            )
+
         metrics = CorrelationBatchMetrics(
             events_scanned=len(events),
             groups_processed=groups_processed,
@@ -195,6 +210,15 @@ class CorrelationRepository:
                 metrics.skipped_edges,
             )
         return metrics
+
+    async def process_available_batches(self, batch_size: int) -> list[CorrelationBatchMetrics]:
+        """Drain backlog without sleeping between full batches."""
+        batches: list[CorrelationBatchMetrics] = []
+        while True:
+            metrics = await self.process_batch(batch_size)
+            batches.append(metrics)
+            if metrics.events_scanned < batch_size:
+                return batches
 
     async def heartbeat(self, metrics: CorrelationBatchMetrics | None = None) -> None:
         updated_at = datetime.now(UTC)

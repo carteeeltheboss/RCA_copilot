@@ -7,13 +7,13 @@ from pydantic import BaseModel, ConfigDict, Field
 class RawJournalRecord(BaseModel):
     boot_id: str = Field(min_length=1)
     journal_cursor: str = Field(min_length=1)
-    message: str
+    message: str = Field(max_length=262144)
 
     model_config = ConfigDict(extra="allow")
 
 
 class BatchIngestRequest(BaseModel):
-    records: list[RawJournalRecord] = Field(default_factory=list)
+    records: list[RawJournalRecord] = Field(default_factory=list, max_length=1000)
 
 
 class BatchIngestResponse(BaseModel):

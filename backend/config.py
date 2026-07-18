@@ -25,6 +25,13 @@ class Settings:
     rca_provider_allowed_hosts: str
     rca_provider_allow_localhost: bool
     rca_provider_request_timeout_seconds: int
+    raw_logs_retention_days: int
+    parsed_logs_retention_days: int
+    event_edges_retention_days: int
+    max_batch_records: int
+    max_request_body_bytes: int
+    batch_rate_limit_per_minute: int
+    policy_file: str
 
     @classmethod
     def from_conf(cls, conf: cfg.ConfigOpts = cfg.CONF) -> "Settings":
@@ -45,6 +52,13 @@ class Settings:
             rca_provider_allowed_hosts=",".join(conf.provider.allowed_hosts),
             rca_provider_allow_localhost=conf.provider.allow_localhost,
             rca_provider_request_timeout_seconds=conf.provider.request_timeout_seconds,
+            raw_logs_retention_days=conf.database.raw_logs_retention_days,
+            parsed_logs_retention_days=conf.database.parsed_logs_retention_days,
+            event_edges_retention_days=conf.database.event_edges_retention_days,
+            max_batch_records=conf.api.max_batch_records,
+            max_request_body_bytes=conf.api.max_request_body_bytes,
+            batch_rate_limit_per_minute=conf.api.batch_rate_limit_per_minute,
+            policy_file=conf.api.policy_file,
         )
 
 

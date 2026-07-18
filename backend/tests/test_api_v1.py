@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from copy import deepcopy
 from datetime import UTC, datetime
 from typing import Any
@@ -85,6 +86,10 @@ class FakeCollection:
 
 def _matches(item: dict[str, Any], query: dict[str, Any]) -> bool:
     for key, expected in query.items():
+        if key == "$or":
+            if not any(_matches(item, branch) for branch in expected):
+                return False
+            continue
         actual = item.get(key)
         if isinstance(expected, dict) and "$in" in expected:
             if actual not in expected["$in"]:
@@ -140,7 +145,11 @@ async def _client(repo: RCARepository):
         return repo
 
     app.dependency_overrides[get_rca_repository] = override_repo
-    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    return AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"X-RCA-Roles": "admin"},
+    )
 
 
 def _set_conf(master_key: str | None = "unit-test-master-key") -> None:
@@ -149,12 +158,16 @@ def _set_conf(master_key: str | None = "unit-test-master-key") -> None:
     cfg.CONF.set_override("internal_service_token", "test-token", group="api")
     cfg.CONF.set_override("allowed_hosts", ["provider.test"], group="provider")
     cfg.CONF.set_override("master_key", master_key, group="provider")
+    cfg.CONF.set_override(
+        "policy_file", str(Path(__file__).parents[2] / "etc" / "policy.yaml"), group="api"
+    )
 
 
 def _clear_conf() -> None:
     cfg.CONF.clear_override("internal_service_token", group="api")
     cfg.CONF.clear_override("allowed_hosts", group="provider")
     cfg.CONF.clear_override("master_key", group="provider")
+    cfg.CONF.clear_override("policy_file", group="api")
     get_settings.cache_clear()
 
 
@@ -172,6 +185,25 @@ def test_internal_service_token_required() -> None:
         _clear_conf()
 
     assert response.status_code == 401
+
+
+def test_provider_policy_rejects_non_admin_keystone_role() -> None:
+    _set_conf()
+    repo = _repo()
+
+    async def _request():
+        async with await _client(repo) as client:
+            return await client.get(
+                "/api/v1/providers",
+                headers={"X-RCA-Service-Token": "test-token", "X-RCA-Roles": "member"},
+            )
+
+    try:
+        response = _run(_request())
+    finally:
+        _clear_conf()
+
+    assert response.status_code == 403
 
 
 def _incident(**overrides: Any) -> dict[str, Any]:
@@ -286,6 +318,48 @@ def test_graph_and_timeline_endpoints_return_incident_evidence() -> None:
     assert graph_response.json()["nodes"][0]["seed"] is True
     assert graph_response.json()["edges"][0]["reason"] == "same_request_id"
     assert timeline_response.json()["items"][0]["event_id"] == "event-1"
+
+
+def test_graph_expands_stale_single_node_incident_from_live_edges() -> None:
+    repo = _repo()
+    repo.incidents.documents.append(
+        _incident(
+            seed_event_id="event-3",
+            event_ids=["event-3"],
+            edge_ids=[],
+            event_count=1,
+            edge_count=0,
+            correlation_version="correlation-v1",
+        )
+    )
+    for event_id in ("event-1", "event-2", "event-3"):
+        repo.parsed_logs.documents.append(
+            {"_id": event_id, "service": event_id, "message": event_id, "level": "INFO"}
+        )
+    repo.event_edges.documents.extend(
+        [
+            {
+                "_id": "edge-1",
+                "source_event_id": "event-1",
+                "target_event_id": "event-2",
+                "reason": "same_request_id",
+                "correlation_version": "correlation-v1",
+            },
+            {
+                "_id": "edge-2",
+                "source_event_id": "event-2",
+                "target_event_id": "event-3",
+                "reason": "same_request_id",
+                "correlation_version": "correlation-v1",
+            },
+        ]
+    )
+
+    graph = _run(repo.get_graph("incident-1"))
+
+    assert graph is not None
+    assert len(graph["nodes"]) == 3
+    assert len(graph["edges"]) == 2
 
 
 def test_no_provider_explain_returns_structured_503() -> None:

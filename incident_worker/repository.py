@@ -46,6 +46,7 @@ class IncidentRepository:
         max_events: int = 100,
         window_before: timedelta = timedelta(minutes=10),
         window_after: timedelta = timedelta(minutes=2),
+        correlation_worker_state_key: str = "correlation_worker_v1",
     ) -> None:
         self.parsed_collection = parsed_collection
         self.edge_collection = edge_collection
@@ -58,6 +59,7 @@ class IncidentRepository:
         self.max_events = max_events
         self.window_before = window_before
         self.window_after = window_after
+        self.correlation_worker_state_key = correlation_worker_state_key
 
     async def ensure_indexes(self) -> None:
         await self.incident_collection.create_indexes(
@@ -91,6 +93,14 @@ class IncidentRepository:
     async def fetch_batch(self, batch_size: int) -> list[dict[str, Any]]:
         checkpoint = await self.load_checkpoint()
         query = self._batch_query(checkpoint)
+        correlation_state = await self.state_collection.find_one(
+            {"_id": self.correlation_worker_state_key}
+        )
+        correlated_through = correlation_state.get("last_id") if correlation_state else None
+        if correlation_state is not None and correlated_through is None:
+            return []
+        if correlated_through is not None:
+            query["_id"] = {"$lte": correlated_through}
         cursor = (
             self.parsed_collection.find(query)
             .sort([("parsed_at", ASCENDING), ("_id", ASCENDING)])
@@ -170,6 +180,7 @@ class IncidentRepository:
                 "$set": {
                     "last_parsed_at": event["parsed_at"],
                     "last_id": event["_id"],
+                    "last_processed_timestamp": event.get("timestamp"),
                     "updated_at": datetime.now(UTC),
                 },
                 "$setOnInsert": {"worker": self.worker_state_key},

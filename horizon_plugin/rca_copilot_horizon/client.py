@@ -21,6 +21,7 @@ class RCAClient:
     base_url: str = getattr(settings, "RCA_COPILOT_BACKEND_URL", "http://127.0.0.1:8000")
     token: str | None = getattr(settings, "RCA_COPILOT_INTERNAL_SERVICE_TOKEN", None)
     timeout: float = getattr(settings, "RCA_COPILOT_BACKEND_TIMEOUT_SECONDS", 5.0)
+    roles: tuple[str, ...] = ()
 
     def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.request("GET", path, params=params)
@@ -49,6 +50,8 @@ class RCAClient:
             headers["Content-Type"] = "application/json"
         if self.token:
             headers["X-RCA-Service-Token"] = self.token
+        if self.roles:
+            headers["X-RCA-Roles"] = ",".join(self.roles)
         request = urllib.request.Request(url, data=body, headers=headers, method=method)
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:

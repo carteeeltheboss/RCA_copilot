@@ -90,18 +90,33 @@ class ParserRepository:
         ]
         return await self.upsert_parsed(parsed_documents)
 
+    async def process_available_batches(self, batch_size: int) -> list[int]:
+        batches: list[int] = []
+        while True:
+            processed = await self.process_batch(batch_size)
+            batches.append(processed)
+            # Large first-run journal backlogs can take longer than the liveness
+            # window to drain. Publish progress for every batch, not only after
+            # the entire backlog has completed.
+            await self.heartbeat(processed)
+            if processed < batch_size:
+                return batches
+
     async def heartbeat(self, processed_count: int = 0) -> None:
         if self.state_collection is None:
             return
+        state = {
+            "worker": self.worker_state_key,
+            "updated_at": datetime.now(UTC),
+            "last_batch_count": processed_count,
+            "parser_version": self.parser_version,
+        }
+        if processed_count:
+            state["last_processed_timestamp"] = datetime.now(UTC)
         await self.state_collection.update_one(
             {"_id": self.worker_state_key},
             {
-                "$set": {
-                    "worker": self.worker_state_key,
-                    "updated_at": datetime.now(UTC),
-                    "last_batch_count": processed_count,
-                    "parser_version": self.parser_version,
-                },
+                "$set": state,
                 "$setOnInsert": {"created_at": datetime.now(UTC)},
             },
             upsert=True,

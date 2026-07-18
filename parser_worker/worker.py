@@ -43,7 +43,8 @@ class ParserWorker:
 
         try:
             while not self._stopping:
-                processed_count = await repository.process_batch(self.config.batch_size)
+                batches = await repository.process_available_batches(self.config.batch_size)
+                processed_count = batches[-1]
                 self._mark_healthy()
                 await repository.heartbeat(processed_count)
                 await asyncio.sleep(self.config.poll_interval_seconds)

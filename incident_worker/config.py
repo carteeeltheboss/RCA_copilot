@@ -21,6 +21,7 @@ class IncidentConfig:
     window_before_seconds: int = 600
     window_after_seconds: int = 120
     health_file: str = "/var/lib/rca-copilot/incident-worker.health"
+    correlation_worker_state_key: str = "correlation_worker_v1"
 
     @classmethod
     def from_conf(cls, conf: cfg.ConfigOpts = cfg.CONF) -> "IncidentConfig":
@@ -43,4 +44,5 @@ class IncidentConfig:
             w.window_before_seconds,
             w.window_after_seconds,
             w.health_file,
+            w.correlation_worker_state_key,
         )

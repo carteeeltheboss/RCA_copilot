@@ -153,6 +153,8 @@ class EnrichmentRepository:
             {
                 "$set": {
                     "last_id": incident["_id"],
+                    "last_processed_timestamp": incident.get("updated_at")
+                    or incident.get("started_at"),
                     "updated_at": datetime.now(UTC),
                 },
                 "$setOnInsert": {"worker": self.worker_state_key},

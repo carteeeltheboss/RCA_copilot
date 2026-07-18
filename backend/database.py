@@ -22,7 +22,7 @@ async def lifespan(_: object) -> AsyncIterator[None]:
     client = AsyncIOMotorClient(settings.mongo_uri)
     database = client[settings.mongo_database]
     collection = database[settings.mongo_raw_logs_collection]
-    repository = RawLogRepository(collection)
+    repository = RawLogRepository(collection, settings.raw_logs_retention_days)
     rca_repository = _build_rca_repository(database, settings)
 
     await repository.ensure_indexes()
@@ -47,7 +47,7 @@ async def get_repository() -> RawLogRepository:
         client = AsyncIOMotorClient(settings.mongo_uri)
         collection = client[settings.mongo_database][settings.mongo_raw_logs_collection]
         state.client = client
-        state.repository = RawLogRepository(collection)
+        state.repository = RawLogRepository(collection, settings.raw_logs_retention_days)
     return state.repository
 
 
@@ -70,4 +70,6 @@ def _build_rca_repository(database: object, settings: Settings) -> RCARepository
         worker_state=database[settings.mongo_worker_state_collection],
         provider_configs=database[settings.mongo_provider_configs_collection],
         config_audit_log=database[settings.mongo_config_audit_log_collection],
+        parsed_retention_days=settings.parsed_logs_retention_days,
+        edge_retention_days=settings.event_edges_retention_days,
     )

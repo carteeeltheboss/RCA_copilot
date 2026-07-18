@@ -82,8 +82,6 @@ causality.
 ### Prerequisites
 
 - DevStack has completed a successful `stack.sh` run.
-- MongoDB is reachable from the host. RCA Copilot does not install MongoDB as
-  part of the DevStack plugin.
 - The operator can edit `local.conf` and rerun `stack.sh`.
 - The `openstack-integration` branch is used. `main` is the original standalone
   baseline and does not contain this OpenStack integration.
@@ -97,13 +95,10 @@ Add the following exact entry under `[[local|localrc]]` in
 [[local|localrc]]
 enable_plugin rca-copilot https://github.com/carteeeltheboss/RCA_copilot.git openstack-integration
 
-RCA_COPILOT_MONGO_URI=mongodb://rca_admin:change-me@127.0.0.1:27017/rca_copilot?authSource=admin
-RCA_COPILOT_MONGO_DATABASE=rca_copilot
 RCA_COPILOT_HOST=127.0.0.1
 RCA_COPILOT_PORT=8000
 ```
 
-Use a deployment-specific MongoDB account instead of the example password.
 Then rerun DevStack so the plugin participates in the normal stack phases:
 
 ```console
@@ -117,6 +112,14 @@ The plugin enables these services by default:
 rca-api rca-collector rca-parser rca-correlation rca-incident rca-enrichment
 ```
 
+`stack.sh` provisions an authenticated MongoDB 7 container on loopback,
+generates persistent deployment secrets, creates the database, collections,
+query and TTL indexes, writes `/etc/rca-copilot/rca-copilot.conf` and
+`policy.yaml`, and waits for all six services. No `mongosh`, Compose, or
+post-stack configuration step is required. `unstack.sh` stops MongoDB and
+`clean.sh` removes its container, volume, generated configuration, and
+DevStack-only secrets.
+
 ### Configuration
 
 The common configuration file is:
@@ -125,8 +128,9 @@ The common configuration file is:
 /etc/rca-copilot/rca-copilot.conf
 ```
 
-Edit it with the same operational care as other OpenStack service
-configuration:
+The DevStack plugin generates it. Optional overrides belong in `local.conf` so
+they are reproduced by the next `stack.sh`; packaged deployments may edit it
+with the same operational care as other OpenStack service configuration:
 
 ```console
 sudoedit /etc/rca-copilot/rca-copilot.conf
@@ -152,6 +156,13 @@ source checkout with:
 ```console
 tox -e genconfig
 ```
+
+Raw logs, parsed logs, and correlation edges have MongoDB TTL indexes. The
+defaults retain each for 30 days; override
+`database.raw_logs_retention_days`, `parsed_logs_retention_days`, and
+`event_edges_retention_days` in `local.conf` when a different evidence window
+is required. `/logs/batch` is capped by record count, body size, message size,
+and requests per minute under the `[api]` options.
 
 After changing configuration in DevStack, restart the affected
 `devstack@rca-*` units. For a packaged installation, restart the corresponding
@@ -209,6 +220,41 @@ The plugin's normal lifecycle is also available through DevStack:
 cd /opt/stack/devstack
 ./unstack.sh
 ./stack.sh
+```
+
+### Backup, retention, and upgrades
+
+Before an upgrade, capture a consistent authenticated dump while the database
+is running:
+
+```console
+docker exec rca-copilot-mongodb mongodump \
+  --username rca_admin --authenticationDatabase admin \
+  --archive=/data/db/rca-copilot.archive --db rca_copilot
+docker cp rca-copilot-mongodb:/data/db/rca-copilot.archive ./
+```
+
+Obtain the generated password from the root-readable DevStack secrets file and
+pass it with `--password` without placing it in shell history. Store the dump
+off-host and test restores periodically. TTL indexes are the primary retention
+control; backups require an independent lifecycle matching the site's policy.
+
+For upgrades, back up first, review release notes and configuration changes,
+update the plugin checkout/branch, then run `stack.sh`. The startup initializer
+applies additive collections and indexes idempotently. Restore with
+`mongorestore --drop` only during a planned outage, then restart all six RCA
+services and verify `/health` and `/api/v1/system/health`.
+
+### Verify a correlated incident
+
+`validation/scripts/inject_correlated_incident.py` submits a Nova → Neutron →
+Placement sequence with one request ID and resource ID. It waits for the live
+pipeline and fails unless the resulting incident graph has at least three
+connected nodes:
+
+```console
+python validation/scripts/inject_correlated_incident.py \
+  --backend http://127.0.0.1:8000
 ```
 
 ### Manage packaged systemd services
@@ -329,7 +375,7 @@ rca_copilot/             shared configuration and command initialization
 devstack/                DevStack plugin and settings
 horizon_plugin/          Horizon dashboard package and enabled files
 systemd/                 packaged service units
-etc/                     sample configuration and policy stub
+etc/                     sample configuration and enforced RBAC policy
 releasenotes/            reno release notes
 latex/                   project presentation
 docker-compose.yml       standalone alternative

@@ -161,6 +161,21 @@
 # (string value)
 #internal_service_token = <None>
 
+# (integer value)
+# Minimum value: 1
+#max_batch_records = 500
+
+# (integer value)
+# Minimum value: 1024
+#max_request_body_bytes = 2097152
+
+# (integer value)
+# Minimum value: 1
+#batch_rate_limit_per_minute = 120
+
+# (string value)
+#policy_file = /etc/rca-copilot/policy.yaml
+
 
 [collector]
 
@@ -277,6 +292,18 @@
 # (string value)
 #config_audit_log_collection = config_audit_log
 
+# (integer value)
+# Minimum value: 1
+#raw_logs_retention_days = 30
+
+# (integer value)
+# Minimum value: 1
+#parsed_logs_retention_days = 30
+
+# (integer value)
+# Minimum value: 1
+#event_edges_retention_days = 30
+
 
 [enrichment]
 
@@ -310,6 +337,9 @@
 
 # (string value)
 #worker_state_key = incident_worker_v1
+
+# (string value)
+#correlation_worker_state_key = correlation_worker_v1
 
 # (string value)
 #correlation_version = correlation-v1

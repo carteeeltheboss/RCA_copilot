@@ -41,6 +41,7 @@ class IncidentWorker:
             max_events=self.config.max_events,
             window_before=timedelta(seconds=self.config.window_before_seconds),
             window_after=timedelta(seconds=self.config.window_after_seconds),
+            correlation_worker_state_key=self.config.correlation_worker_state_key,
         )
 
         await repository.ensure_indexes()

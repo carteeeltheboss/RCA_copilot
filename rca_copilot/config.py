@@ -21,12 +21,19 @@ database_opts = [
     cfg.StrOpt("worker_state_collection", default="worker_state"),
     cfg.StrOpt("provider_configs_collection", default="provider_configs"),
     cfg.StrOpt("config_audit_log_collection", default="config_audit_log"),
+    cfg.IntOpt("raw_logs_retention_days", default=30, min=1),
+    cfg.IntOpt("parsed_logs_retention_days", default=30, min=1),
+    cfg.IntOpt("event_edges_retention_days", default=30, min=1),
 ]
 api_opts = [
     cfg.HostAddressOpt("bind_host", default="127.0.0.1"),
     cfg.PortOpt("bind_port", default=8000),
     cfg.IntOpt("workers", default=1, min=1),
     cfg.StrOpt("internal_service_token", secret=True),
+    cfg.IntOpt("max_batch_records", default=500, min=1),
+    cfg.IntOpt("max_request_body_bytes", default=2097152, min=1024),
+    cfg.IntOpt("batch_rate_limit_per_minute", default=120, min=1),
+    cfg.StrOpt("policy_file", default="/etc/rca-copilot/policy.yaml"),
 ]
 collector_opts = [
     cfg.URIOpt("backend_batch_url", default="http://127.0.0.1:8000/logs/batch"),
@@ -71,6 +78,7 @@ correlation_opts = [
 ]
 incident_opts = [
     cfg.StrOpt("worker_state_key", default="incident_worker_v1"),
+    cfg.StrOpt("correlation_worker_state_key", default="correlation_worker_v1"),
     cfg.StrOpt("correlation_version", default="correlation-v1"),
     cfg.StrOpt("version", default="incident-v1"),
     cfg.IntOpt("batch_size", default=100, min=1),
