@@ -185,18 +185,19 @@
 \progress{Blue}
 \centering
 \begin{tikzpicture}[x=1cm,y=1cm]
-  \node[ok,minimum width=2.0cm] at (1.7,3.35) {Implemented\\ingestion};
-  \node[ok,minimum width=2.0cm] at (3.95,3.35) {Implemented\\parsing};
-  \node[ok,minimum width=2.0cm] at (6.2,3.35) {Implemented\\correlation};
-  \node[ok,minimum width=2.0cm] at (8.45,3.35) {Implemented\\incidents};
-  \node[ok,minimum width=2.0cm] at (10.7,3.35) {Implemented\\enrichment};
-  \node[future,minimum width=2.0cm] at (2.85,1.75) {Future\\Horizon UI};
-  \node[future,minimum width=2.0cm] at (5.25,1.75) {Future\\ChromaDB};
-  \node[future,minimum width=2.0cm] at (7.65,1.75) {Future\\RAG};
-  \node[future,minimum width=2.0cm] at (10.05,1.75) {Future\\AI answer};
+  \node[ok,minimum width=2.0cm] at (1.7,3.35) {pbr\\package};
+  \node[ok,minimum width=2.0cm] at (3.95,3.35) {oslo.config\\+ oslo.log};
+  \node[ok,minimum width=2.0cm] at (6.2,3.35) {six managed\\processes};
+  \node[ok,minimum width=2.0cm] at (8.45,3.35) {DevStack\\plugin};
+  \node[ok,minimum width=2.0cm] at (10.7,3.35) {Horizon\\dashboard};
+  \node[ok,minimum width=2.0cm] at (2.85,1.75) {ingestion\\+ parsing};
+  \node[ok,minimum width=2.0cm] at (5.25,1.75) {correlation\\+ incidents};
+  \node[ok,minimum width=2.0cm] at (7.65,1.75) {enrichment\\+ providers};
+  \node[future,minimum width=2.0cm] at (10.05,1.75) {Future\\vectors/RAG};
   \draw[flow] (.75,3.35)--(11.75,3.35);
-  \draw[futureline] (1.85,1.75)--(11.05,1.75);
-  \node[note,text width=10.6cm] at (6,.56) {Solid boxes are implemented evidence construction. Dashed boxes are future explanation and operator-experience layers.};
+  \draw[flow] (1.85,1.75)--(8.65,1.75);
+  \draw[futureline] (8.65,1.75)--(11.05,1.75);
+  \node[note,text width=10.6cm] at (6,.56) {The evidence pipeline and OpenStack integration are implemented. Dotted boxes remain future capability.};
 \end{tikzpicture}
 \end{frame}
 
@@ -323,11 +324,11 @@
 \centering
 \begin{tikzpicture}[x=1cm,y=1cm]
   \node[future,minimum width=12.0cm,minimum height=4.05cm] at (6,3.0) {};
-  \node[label,text=Slate] at (6,4.82) {Future Horizon RCA Copilot workspace};
-  \node[future,minimum width=2.35cm,minimum height=2.75cm] at (1.85,3.0) {incident list};
-  \node[future,minimum width=3.4cm,minimum height=1.85cm] at (5.0,3.55) {graph view};
-  \node[future,minimum width=3.4cm,minimum height=1.08cm] at (5.0,2.0) {timeline};
-  \node[future,minimum width=3.15cm,minimum height=2.75cm] at (9.35,3.0) {event details\\evidence summary};
+  \node[label,text=Teal] at (6,4.82) {Implemented Horizon RCA Copilot dashboard};
+  \node[transform,minimum width=2.35cm,minimum height=2.75cm] at (1.85,3.0) {overview\\incident list};
+  \node[graph,minimum width=3.4cm,minimum height=1.85cm] at (5.0,3.55) {investigation\\graph view};
+  \node[transform,minimum width=3.4cm,minimum height=1.08cm] at (5.0,2.0) {timeline};
+  \node[ok,minimum width=3.15cm,minimum height=2.75cm] at (9.35,3.0) {system health\\provider settings};
   \node[future,minimum width=1.85cm,minimum height=2.75cm] at (11.7,3.0) {AI panel\\future};
   \node[nodeErr] at (4.35,3.48) {};
   \node[nodeWarn] at (5.1,3.88) {};
@@ -371,24 +372,25 @@
 \end{tikzpicture}
 \end{frame}
 
-\begin{frame}{15. Two-Machine Architecture}
+\begin{frame}{15. OpenStack-Native Deployment}
 \progress{Green}
 \centering
 \begin{tikzpicture}[x=1cm,y=1cm]
   \node[box,draw=DeepNavy,fill=Canvas,minimum width=5.65cm,minimum height=4.3cm] (mac) at (3.3,2.8) {};
-  \node[label] at (3.3,4.7) {MacBook Ubuntu: implemented evidence plane};
-  \node[service] at (1.55,3.75) {DevStack};
-  \node[service] at (3.45,3.75) {collector/API};
+  \node[label] at (3.3,4.7) {OpenStack host: RCA Copilot};
+  \node[service] at (1.55,3.75) {enable\_plugin};
+  \node[service] at (3.45,3.75) {API +\\collector};
   \node[storage] at (5.2,3.0) {MongoDB};
-  \node[graph] at (2.6,2.1) {workers};
-  \node[ok] at (4.4,1.55) {enriched\\incidents};
+  \node[graph] at (2.6,2.1) {four workers};
+  \node[ok] at (4.4,1.55) {Horizon\\dashboard};
   \node[box,draw=Slate,dash pattern=on 4pt off 2pt,fill=white,minimum width=4.65cm,minimum height=4.3cm] (msi) at (9.7,2.8) {};
   \node[label,text=Slate] at (9.7,4.7) {Future provider node};
   \node[future] at (9.7,3.65) {embedding API};
   \node[future] at (9.7,2.75) {reranker};
   \node[future] at (9.7,1.85) {local/provider LLM};
   \draw[futureline] (mac.east)--(msi.west);
-  \node[note,fill=white,inner sep=1pt,text width=2.05cm] at (6.88,4.12) {private API\\boundary};
+  \node[note,fill=white,inner sep=1pt,text width=2.05cm] at (6.88,4.12) {optional private\\provider API};
+  \node[note,font=\scriptsize,text width=2.2cm] at (1.85,1.05) {pbr + oslo.config\\systemd / run\_process};
 \end{tikzpicture}
 \end{frame}
 
@@ -397,34 +399,30 @@
 \centering
 \begin{tikzpicture}[x=1cm,y=1cm]
   \node[box,draw=DeepNavy,fill=Canvas,minimum width=12.2cm,minimum height=4.95cm] at (6,2.85) {};
-  \node[label] at (6,5.08) {End-to-end architecture: deterministic evidence first, AI later};
+  \node[label] at (6,5.08) {Six OpenStack-managed processes: deterministic evidence first};
   \node[service] (os) at (1.0,4.0) {OpenStack};
-  \node[storage] (j) at (2.6,4.0) {journald};
-  \node[service] (col) at (4.15,4.0) {collector};
-  \node[service] (api) at (5.85,4.0) {FastAPI};
-  \node[storage] (raw) at (7.65,4.0) {raw};
-  \node[transform] (parse) at (2.15,2.7) {parser};
-  \node[storage] (parsed) at (3.75,2.7) {events};
-  \node[graph] (corr) at (5.55,2.7) {correlation};
-  \node[storage] (edges) at (7.25,2.7) {edges};
-  \node[err] (inc) at (8.95,2.7) {incident};
-  \node[ok] (en) at (10.65,2.7) {enrichment};
-  \node[future] (hor) at (4.25,1.25) {Horizon};
-  \node[future] (rag) at (7.1,1.25) {RAG/provider};
-  \node[ok] (op) at (10.15,1.25) {operator};
-  \begin{scope}[on background layer]
+  \node[storage] (j) at (2.7,4.0) {journald};
+  \node[service] (col) at (4.45,4.0) {collector};
+  \node[service] (api) at (6.25,4.0) {FastAPI};
+  \node[storage] (raw) at (8.15,4.0) {raw};
+  \node[transform] (parse) at (10.75,2.7) {parser};
+  \node[storage] (parsed) at (9.05,2.7) {events};
+  \node[graph] (corr) at (7.2,2.7) {correlation};
+  \node[storage] (edges) at (5.35,2.7) {edges};
+  \node[err] (inc) at (3.55,2.7) {incident};
+  \node[ok] (en) at (1.65,2.7) {enrichment};
+  \node[ok] (hor) at (3.1,1.25) {Horizon};
+  \node[future] (rag) at (6.5,1.25) {RAG/provider};
+  \node[ok] (op) at (10.1,1.25) {operator};
     \draw[flow] (os)--(j)--(col)--(api);
     \draw[data] (api)--(raw);
-    \draw[data] (raw)|-(parse);
+    \draw[data] (raw.east)-|(parse.north);
     \draw[data] (parse)--(parsed);
     \draw[req] (parsed)--(corr);
     \draw[data] (corr)--(edges);
     \draw[req] (edges)--(inc)--(en);
-    \draw[futureline] (en)--(hor);
-    \draw[futureline] (en)--(rag);
-    \draw[futureline] (rag)--(op);
-    \draw[futureline] (hor)--(op);
-  \end{scope}
+    \draw[flow] (en)--(hor);
+    \draw[flow] (hor.north) to[bend left=14] (op.north);
 \end{tikzpicture}
 \end{frame}
 
@@ -454,10 +452,10 @@
   \node[warn,minimum width=3.1cm] at (6.0,3.55) {not just\\monitoring};
   \node[future,minimum width=3.1cm] at (9.3,3.55) {not just\\a chatbot};
   \node[ok,minimum width=8.2cm,minimum height=1.05cm] at (6,2.25) {structured RCA evidence construction};
-  \node[future,minimum width=2.15cm] at (2.45,1.45) {Horizon UI};
-  \node[future,minimum width=2.15cm] at (4.85,1.45) {vectors/RAG};
-  \node[future,minimum width=2.15cm] at (7.25,1.45) {provider tests};
-  \node[future,minimum width=2.15cm] at (9.65,1.45) {live demo};
+  \node[ok,minimum width=2.15cm] at (2.45,1.45) {OpenStack\\packaging};
+  \node[ok,minimum width=2.15cm] at (4.85,1.45) {DevStack +\\systemd};
+  \node[ok,minimum width=2.15cm] at (7.25,1.45) {Horizon +\\providers};
+  \node[future,minimum width=2.15cm] at (9.65,1.45) {vectors/RAG};
   \node[note,text width=11.3cm] at (6,.32) {\textbf{Final takeaway:} RCA Copilot converts noisy OpenStack logs into structured, bounded, explainable investigation evidence.};
 \end{tikzpicture}
 \end{frame}
