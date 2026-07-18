@@ -17,5 +17,11 @@ class GeminiAdapter(BaseProviderAdapter):
 
     def parse_response(self, body: bytes, latency_ms: int) -> ProviderResult:
         data = parse_json(body)
-        models = [str(item.get("name")) for item in data.get("models", []) if isinstance(item, dict) and item.get("name")]
-        return ProviderResult(status="success", latency_ms=latency_ms, provider_identity="gemini", models=models)
+        models = [
+            str(item.get("name"))
+            for item in data.get("models", [])
+            if isinstance(item, dict) and item.get("name")
+        ]
+        return ProviderResult(
+            status="success", latency_ms=latency_ms, provider_identity="gemini", models=models
+        )

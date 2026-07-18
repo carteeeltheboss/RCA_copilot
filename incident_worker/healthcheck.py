@@ -5,10 +5,11 @@ import time
 from pathlib import Path
 
 from incident_worker.config import IncidentConfig
+from rca_copilot.service import prepare_service
 
 
 def main() -> int:
-    config = IncidentConfig.from_env()
+    config = IncidentConfig.from_conf(prepare_service())
     path = Path(config.health_file)
     if not path.exists():
         return 1

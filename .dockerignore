@@ -1,0 +1,8 @@
+.git
+.tox
+.venv
+**/__pycache__
+*.egg-info
+latex
+manim_explainer
+validation/results

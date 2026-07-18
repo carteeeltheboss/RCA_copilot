@@ -150,7 +150,9 @@ def test_missing_event_handling() -> None:
 def test_deterministic_summaries() -> None:
     args = {
         "incident": incident(),
-        "events": [event("seed", level="ERROR", message="request failed", resource_ids=["server-a"])],
+        "events": [
+            event("seed", level="ERROR", message="request failed", resource_ids=["server-a"])
+        ],
         "edges": [edge("edge-1")],
         "enrichment_version": "enrichment-v1",
         "enriched_at": BASE_TIME,
@@ -249,7 +251,11 @@ class FakeCollection:
 
     def find(self, query: dict[str, Any]) -> FakeCursor:
         return FakeCursor(
-            [dict(document) for document in self.documents.values() if matches_query(document, query)]
+            [
+                dict(document)
+                for document in self.documents.values()
+                if matches_query(document, query)
+            ]
         )
 
 

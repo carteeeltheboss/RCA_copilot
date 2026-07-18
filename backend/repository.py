@@ -69,7 +69,10 @@ class RCARepository:
                 IndexModel([("incident_id", ASCENDING)], unique=True, name="uniq_incident_id"),
                 IndexModel([("started_at", ASCENDING)], name="idx_started_at"),
                 IndexModel([("status", ASCENDING)], name="idx_status"),
-                IndexModel([("severity", ASCENDING), ("status", ASCENDING)], name="idx_incidents_severity_status"),
+                IndexModel(
+                    [("severity", ASCENDING), ("status", ASCENDING)],
+                    name="idx_incidents_severity_status",
+                ),
                 IndexModel([("service", ASCENDING)], name="idx_incidents_service"),
                 IndexModel([("request_id", ASCENDING)], name="idx_incidents_request_id"),
                 IndexModel([("resource_ids", ASCENDING)], name="idx_incidents_resource_ids"),
@@ -83,20 +86,35 @@ class RCARepository:
                     name="uniq_provider_version",
                 ),
                 IndexModel(
-                    [("provider_type", ASCENDING), ("provider_kind", ASCENDING), ("status", ASCENDING)],
+                    [
+                        ("provider_type", ASCENDING),
+                        ("provider_kind", ASCENDING),
+                        ("status", ASCENDING),
+                    ],
                     name="idx_provider_type_kind_status",
                 ),
             ]
         )
         await self.config_audit_log.create_indexes(
             [
-                IndexModel([("provider_id", ASCENDING), ("timestamp", ASCENDING)], name="idx_audit_provider_timestamp"),
+                IndexModel(
+                    [("provider_id", ASCENDING), ("timestamp", ASCENDING)],
+                    name="idx_audit_provider_timestamp",
+                ),
                 IndexModel([("timestamp", ASCENDING)], name="idx_audit_timestamp"),
             ]
         )
 
     async def system_summary(self) -> dict[str, Any]:
-        raw_count, parsed_count, edge_count, incident_count, candidate_count, enriched_count, active_providers = await _gather(
+        (
+            raw_count,
+            parsed_count,
+            edge_count,
+            incident_count,
+            candidate_count,
+            enriched_count,
+            active_providers,
+        ) = await _gather(
             self.raw_logs.count_documents({}),
             self.parsed_logs.count_documents({"parse_status": "success"}),
             self.event_edges.count_documents({}),
@@ -138,9 +156,16 @@ class RCARepository:
         ]
         rows = []
         for name, collection, field, default_status in stages:
-            latest = await collection.find({field: {"$exists": True}}).sort(field, -1).limit(1).to_list(length=1)
+            latest = (
+                await collection.find({field: {"$exists": True}})
+                .sort(field, -1)
+                .limit(1)
+                .to_list(length=1)
+            )
             count = await collection.count_documents({})
-            worker = next((value for key, value in state_by_worker.items() if name.split()[0] in key), None)
+            worker = next(
+                (value for key, value in state_by_worker.items() if name.split()[0] in key), None
+            )
             rows.append(
                 {
                     "name": name,
@@ -152,10 +177,14 @@ class RCARepository:
         return rows
 
     async def provider_availability(self) -> dict[str, Any]:
-        providers = await self.provider_configs.find({"active": True, "enabled": True}).to_list(length=100)
+        providers = await self.provider_configs.find({"active": True, "enabled": True}).to_list(
+            length=100
+        )
         result = {}
         for provider_type in ["llm", "embedding", "reranker", "vector_store"]:
-            provider = next((item for item in providers if item.get("provider_type") == provider_type), None)
+            provider = next(
+                (item for item in providers if item.get("provider_type") == provider_type), None
+            )
             result[provider_type] = {
                 "status": provider.get("status", "unconfigured") if provider else "unconfigured",
                 "display_name": provider.get("display_name") if provider else "Not configured",
@@ -166,21 +195,50 @@ class RCARepository:
         return result
 
     async def system_health(self) -> dict[str, Any]:
-        health = [{"component": "RCA backend", "status": "healthy", "endpoint": "localhost", "enabled": True}]
+        health = [
+            {
+                "component": "RCA backend",
+                "status": "healthy",
+                "endpoint": "localhost",
+                "enabled": True,
+            }
+        ]
         try:
             await self.raw_logs.database.client.admin.command("ping")
-            health.append({"component": "MongoDB", "status": "healthy", "endpoint": "configured MongoDB", "enabled": True})
+            health.append(
+                {
+                    "component": "MongoDB",
+                    "status": "healthy",
+                    "endpoint": "configured MongoDB",
+                    "enabled": True,
+                }
+            )
         except Exception as exc:
-            health.append({"component": "MongoDB", "status": "unavailable", "endpoint": "configured MongoDB", "enabled": True, "last_error": str(exc)[:160]})
+            health.append(
+                {
+                    "component": "MongoDB",
+                    "status": "unavailable",
+                    "endpoint": "configured MongoDB",
+                    "enabled": True,
+                    "last_error": str(exc)[:160],
+                }
+            )
         state_rows = await self.worker_state.find({}).to_list(length=100)
         state_by_worker = {str(item.get("worker") or item.get("_id")): item for item in state_rows}
-        latest_raw = await self.raw_logs.find({"received_at": {"$exists": True}}).sort("received_at", -1).limit(1).to_list(length=1)
+        latest_raw = (
+            await self.raw_logs.find({"received_at": {"$exists": True}})
+            .sort("received_at", -1)
+            .limit(1)
+            .to_list(length=1)
+        )
         health.append(
             {
                 "component": "collector",
                 "status": "healthy" if latest_raw else "unknown",
                 "endpoint": "raw log ingestion",
-                "latest_successful_check": _json_safe(latest_raw[0].get("received_at")) if latest_raw else None,
+                "latest_successful_check": (
+                    _json_safe(latest_raw[0].get("received_at")) if latest_raw else None
+                ),
                 "enabled": True,
             }
         )
@@ -194,14 +252,22 @@ class RCARepository:
             health.append(_worker_health_row(component, state_by_worker.get(key)))
         providers = await self.provider_configs.find({"active": True}).to_list(length=100)
         for provider_type in ["llm", "embedding", "reranker", "vector_store"]:
-            provider = next((item for item in providers if item.get("provider_type") == provider_type), None)
+            provider = next(
+                (item for item in providers if item.get("provider_type") == provider_type), None
+            )
             health.append(_provider_health_row(provider_type, provider))
-        llm_provider = next((item for item in providers if item.get("provider_type") == "llm"), None)
+        llm_provider = next(
+            (item for item in providers if item.get("provider_type") == "llm"), None
+        )
         if llm_provider and llm_provider.get("provider_kind") == "ollama":
             health.append(
                 {
                     "component": "MSI Ollama reachability",
-                    "status": "healthy" if llm_provider.get("last_test_status") == "success" else "degraded",
+                    "status": (
+                        "healthy"
+                        if llm_provider.get("last_test_status") == "success"
+                        else "degraded"
+                    ),
                     "endpoint": llm_provider.get("base_url"),
                     "latest_successful_check": _json_safe(llm_provider.get("last_tested_at")),
                     "response_latency": llm_provider.get("last_test_latency_ms"),
@@ -211,13 +277,17 @@ class RCARepository:
             )
         return {"components": health}
 
-    async def list_incidents(self, filters: dict[str, Any], sort: str, page: int, page_size: int) -> dict[str, Any]:
+    async def list_incidents(
+        self, filters: dict[str, Any], sort: str, page: int, page_size: int
+    ) -> dict[str, Any]:
         query = _incident_query(filters)
         page = max(1, page)
         page_size = min(max(1, page_size), 100)
         sort_spec = _incident_sort(sort)
         total = await self.incidents.count_documents(query)
-        cursor = self.incidents.find(query).sort(sort_spec).skip((page - 1) * page_size).limit(page_size)
+        cursor = (
+            self.incidents.find(query).sort(sort_spec).skip((page - 1) * page_size).limit(page_size)
+        )
         return {
             "items": [_incident_summary(item) for item in await cursor.to_list(length=page_size)],
             "page": page,
@@ -233,12 +303,23 @@ class RCARepository:
         incident = await self.get_incident(incident_id)
         if not incident:
             return None
-        event_ids = [_coerce_id(str(value)) for value in list(incident.get("event_ids") or [])[:max_nodes]]
-        events = await self.parsed_logs.find({"_id": {"$in": event_ids}}).to_list(length=len(event_ids))
+        event_ids = [
+            _coerce_id(str(value)) for value in list(incident.get("event_ids") or [])[:max_nodes]
+        ]
+        events = await self.parsed_logs.find({"_id": {"$in": event_ids}}).to_list(
+            length=len(event_ids)
+        )
         edge_ids = [_coerce_id(str(value)) for value in list(incident.get("edge_ids") or [])]
-        edges = await self.event_edges.find({"_id": {"$in": edge_ids}}).to_list(length=len(edge_ids) or 1)
+        edges = await self.event_edges.find({"_id": {"$in": edge_ids}}).to_list(
+            length=len(edge_ids) or 1
+        )
         event_id_set = {item.get("_id") for item in events}
-        visible_edges = [edge for edge in edges if edge.get("source_event_id") in event_id_set and edge.get("target_event_id") in event_id_set]
+        visible_edges = [
+            edge
+            for edge in edges
+            if edge.get("source_event_id") in event_id_set
+            and edge.get("target_event_id") in event_id_set
+        ]
         return {
             "incident_id": incident_id,
             "nodes": [_graph_node(event, incident.get("seed_event_id")) for event in events],
@@ -252,7 +333,11 @@ class RCARepository:
         if not incident:
             return None
         timeline = list(incident.get("timeline") or [])[: min(limit, 500)]
-        return {"incident_id": incident_id, "items": _json_safe(timeline), "truncated": len(incident.get("timeline") or []) > len(timeline)}
+        return {
+            "incident_id": incident_id,
+            "items": _json_safe(timeline),
+            "truncated": len(incident.get("timeline") or []) > len(timeline),
+        }
 
     async def get_event(self, incident_id: str, event_id: str) -> dict[str, Any] | None:
         incident = await self.get_incident(incident_id)
@@ -261,14 +346,24 @@ class RCARepository:
         event = await self.parsed_logs.find_one({"_id": _coerce_id(event_id)})
         return _json_safe(event) if event else None
 
-    async def get_incident_evidence(self, incident_id: str, max_events: int = 40, max_edges: int = 80) -> dict[str, Any] | None:
+    async def get_incident_evidence(
+        self, incident_id: str, max_events: int = 40, max_edges: int = 80
+    ) -> dict[str, Any] | None:
         incident = await self.get_incident(incident_id)
         if not incident:
             return None
-        event_ids = [_coerce_id(str(value)) for value in list(incident.get("event_ids") or [])[:max_events]]
-        edge_ids = [_coerce_id(str(value)) for value in list(incident.get("edge_ids") or [])[:max_edges]]
-        events = await self.parsed_logs.find({"_id": {"$in": event_ids}}).to_list(length=len(event_ids) or 1)
-        edges = await self.event_edges.find({"_id": {"$in": edge_ids}}).to_list(length=len(edge_ids) or 1)
+        event_ids = [
+            _coerce_id(str(value)) for value in list(incident.get("event_ids") or [])[:max_events]
+        ]
+        edge_ids = [
+            _coerce_id(str(value)) for value in list(incident.get("edge_ids") or [])[:max_edges]
+        ]
+        events = await self.parsed_logs.find({"_id": {"$in": event_ids}}).to_list(
+            length=len(event_ids) or 1
+        )
+        edges = await self.event_edges.find({"_id": {"$in": edge_ids}}).to_list(
+            length=len(edge_ids) or 1
+        )
         return {
             "incident": incident,
             "events": [_safe_event_for_evidence(event) for event in events],
@@ -278,24 +373,47 @@ class RCARepository:
         }
 
     async def list_providers(self) -> list[dict[str, Any]]:
-        providers = await self.provider_configs.find({}).sort([("provider_type", ASCENDING), ("provider_id", ASCENDING), ("config_version", -1)]).to_list(length=500)
+        providers = (
+            await self.provider_configs.find({})
+            .sort(
+                [("provider_type", ASCENDING), ("provider_id", ASCENDING), ("config_version", -1)]
+            )
+            .to_list(length=500)
+        )
         return [_sanitize_provider(item) for item in providers]
 
     async def active_providers(self) -> list[dict[str, Any]]:
-        providers = await self.provider_configs.find({"active": True, "enabled": True}).sort("provider_type", ASCENDING).to_list(length=20)
+        providers = (
+            await self.provider_configs.find({"active": True, "enabled": True})
+            .sort("provider_type", ASCENDING)
+            .to_list(length=20)
+        )
         return [_sanitize_provider(item) for item in providers]
 
     async def active_provider(self, provider_type: str) -> dict[str, Any] | None:
-        return await self.provider_configs.find_one({"provider_type": provider_type, "active": True, "enabled": True})
+        return await self.provider_configs.find_one(
+            {"provider_type": provider_type, "active": True, "enabled": True}
+        )
 
     async def get_provider_latest(self, provider_id: str) -> dict[str, Any] | None:
-        items = await self.provider_configs.find({"provider_id": provider_id}).sort("config_version", -1).limit(1).to_list(length=1)
+        items = (
+            await self.provider_configs.find({"provider_id": provider_id})
+            .sort("config_version", -1)
+            .limit(1)
+            .to_list(length=1)
+        )
         return items[0] if items else None
 
-    async def get_provider_version(self, provider_id: str, config_version: int) -> dict[str, Any] | None:
-        return await self.provider_configs.find_one({"provider_id": provider_id, "config_version": config_version})
+    async def get_provider_version(
+        self, provider_id: str, config_version: int
+    ) -> dict[str, Any] | None:
+        return await self.provider_configs.find_one(
+            {"provider_id": provider_id, "config_version": config_version}
+        )
 
-    async def save_provider(self, document: dict[str, Any], actor: str, action: str = "save_draft") -> dict[str, Any]:
+    async def save_provider(
+        self, document: dict[str, Any], actor: str, action: str = "save_draft"
+    ) -> dict[str, Any]:
         await self.provider_configs.replace_one(
             {"provider_id": document["provider_id"], "config_version": document["config_version"]},
             document,
@@ -308,7 +426,9 @@ class RCARepository:
         latest = await self.get_provider_latest(provider_id)
         return int(latest.get("config_version", 0)) + 1 if latest else 1
 
-    async def update_provider_test(self, provider: dict[str, Any], result: dict[str, Any], actor: str) -> dict[str, Any]:
+    async def update_provider_test(
+        self, provider: dict[str, Any], result: dict[str, Any], actor: str
+    ) -> dict[str, Any]:
         now = datetime.now(UTC)
         status = "inactive" if result["success"] else "failed"
         updates = {
@@ -320,7 +440,10 @@ class RCARepository:
             "updated_at": now,
             "updated_by": actor,
         }
-        await self.provider_configs.update_one({"provider_id": provider["provider_id"], "config_version": provider["config_version"]}, {"$set": updates})
+        await self.provider_configs.update_one(
+            {"provider_id": provider["provider_id"], "config_version": provider["config_version"]},
+            {"$set": updates},
+        )
         saved = await self.get_provider_version(provider["provider_id"], provider["config_version"])
         await self.audit("test_connection", saved or provider, actor, test_result=result)
         return _sanitize_provider(saved or provider)
@@ -328,16 +451,40 @@ class RCARepository:
     async def activate_provider(self, provider: dict[str, Any], actor: str) -> dict[str, Any]:
         offline_placeholder = bool(provider.get("extra_config", {}).get("offline_placeholder"))
         if provider.get("last_test_status") != "success" and not offline_placeholder:
-            await self.audit("activate_failed", provider, actor, activation_result={"success": False, "error": "provider must pass connection test before activation"})
+            await self.audit(
+                "activate_failed",
+                provider,
+                actor,
+                activation_result={
+                    "success": False,
+                    "error": "provider must pass connection test before activation",
+                },
+            )
             raise ValueError("provider must pass connection test before activation")
         now = datetime.now(UTC)
         await self.provider_configs.update_many(
             {"provider_type": provider["provider_type"], "active": True},
-            {"$set": {"status": "inactive", "active": False, "updated_at": now, "updated_by": actor}},
+            {
+                "$set": {
+                    "status": "inactive",
+                    "active": False,
+                    "updated_at": now,
+                    "updated_by": actor,
+                }
+            },
         )
         await self.provider_configs.update_one(
             {"provider_id": provider["provider_id"], "config_version": provider["config_version"]},
-            {"$set": {"status": "active", "active": True, "enabled": True, "activated_at": now, "updated_at": now, "updated_by": actor}},
+            {
+                "$set": {
+                    "status": "active",
+                    "active": True,
+                    "enabled": True,
+                    "activated_at": now,
+                    "updated_at": now,
+                    "updated_by": actor,
+                }
+            },
         )
         saved = await self.get_provider_version(provider["provider_id"], provider["config_version"])
         await self.audit("activate", saved or provider, actor, activation_result={"success": True})
@@ -345,16 +492,37 @@ class RCARepository:
 
     async def rollback_provider(self, provider: dict[str, Any], actor: str) -> dict[str, Any]:
         if provider.get("last_test_status") != "success":
-            await self.audit("rollback_failed", provider, actor, rollback_result={"success": False, "error": "rollback target must be a tested successful version"})
+            await self.audit(
+                "rollback_failed",
+                provider,
+                actor,
+                rollback_result={
+                    "success": False,
+                    "error": "rollback target must be a tested successful version",
+                },
+            )
             raise ValueError("rollback target must be a tested successful version")
         saved = await self.activate_provider(provider, actor)
-        await self.audit("rollback", provider, actor, rollback_result={"success": True, "config_version": provider.get("config_version")})
+        await self.audit(
+            "rollback",
+            provider,
+            actor,
+            rollback_result={"success": True, "config_version": provider.get("config_version")},
+        )
         return saved
 
     async def disable_provider(self, provider: dict[str, Any], actor: str) -> dict[str, Any]:
         await self.provider_configs.update_one(
             {"provider_id": provider["provider_id"], "config_version": provider["config_version"]},
-            {"$set": {"enabled": False, "active": False, "status": "inactive", "updated_at": datetime.now(UTC), "updated_by": actor}},
+            {
+                "$set": {
+                    "enabled": False,
+                    "active": False,
+                    "status": "inactive",
+                    "updated_at": datetime.now(UTC),
+                    "updated_by": actor,
+                }
+            },
         )
         saved = await self.get_provider_version(provider["provider_id"], provider["config_version"])
         await self.audit("disable", saved or provider, actor)
@@ -363,11 +531,18 @@ class RCARepository:
     async def delete_provider_draft(self, provider: dict[str, Any], actor: str) -> None:
         if provider.get("status") not in {"draft", "failed", "unconfigured"}:
             raise ValueError("only unused draft or failed provider versions can be deleted")
-        await self.provider_configs.delete_one({"provider_id": provider["provider_id"], "config_version": provider["config_version"]})
+        await self.provider_configs.delete_one(
+            {"provider_id": provider["provider_id"], "config_version": provider["config_version"]}
+        )
         await self.audit("delete_unused_draft", provider, actor)
 
     async def history(self, provider_id: str) -> list[dict[str, Any]]:
-        rows = await self.config_audit_log.find({"provider_id": provider_id}).sort("timestamp", -1).limit(100).to_list(length=100)
+        rows = (
+            await self.config_audit_log.find({"provider_id": provider_id})
+            .sort("timestamp", -1)
+            .limit(100)
+            .to_list(length=100)
+        )
         return [_json_safe(row) for row in rows]
 
     async def audit(self, action: str, provider: dict[str, Any], actor: str, **extra: Any) -> None:
@@ -387,6 +562,7 @@ class RCARepository:
 
 async def _gather(*awaitables: Any) -> tuple[Any, ...]:
     import asyncio
+
     return tuple(await asyncio.gather(*awaitables))
 
 
@@ -438,11 +614,24 @@ def _incident_summary(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def _graph_node(event: dict[str, Any], seed_event_id: Any) -> dict[str, Any]:
-    return {"id": str(event.get("_id")), "label": str(event.get("service") or "event"), "level": event.get("level"), "service": event.get("service"), "message": event.get("message"), "seed": str(event.get("_id")) == str(seed_event_id)}
+    return {
+        "id": str(event.get("_id")),
+        "label": str(event.get("service") or "event"),
+        "level": event.get("level"),
+        "service": event.get("service"),
+        "message": event.get("message"),
+        "seed": str(event.get("_id")) == str(seed_event_id),
+    }
 
 
 def _graph_edge(edge: dict[str, Any]) -> dict[str, Any]:
-    return {"id": str(edge.get("_id")), "source": str(edge.get("source_event_id")), "target": str(edge.get("target_event_id")), "reason": edge.get("reason"), "confidence": edge.get("confidence")}
+    return {
+        "id": str(edge.get("_id")),
+        "source": str(edge.get("source_event_id")),
+        "target": str(edge.get("target_event_id")),
+        "reason": edge.get("reason"),
+        "confidence": edge.get("confidence"),
+    }
 
 
 def _safe_event_for_evidence(event: dict[str, Any]) -> dict[str, Any]:
@@ -450,7 +639,9 @@ def _safe_event_for_evidence(event: dict[str, Any]) -> dict[str, Any]:
     return _json_safe(
         {
             "id": str(event.get("_id")),
-            "timestamp": event.get("timestamp") or event.get("parsed_at") or event.get("received_at"),
+            "timestamp": event.get("timestamp")
+            or event.get("parsed_at")
+            or event.get("received_at"),
             "service": event.get("service"),
             "level": event.get("level"),
             "event_type": event.get("event_type"),
@@ -482,7 +673,11 @@ def _sanitize_provider(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def _non_secret_provider_fields(item: dict[str, Any]) -> dict[str, Any]:
-    return {key: _json_safe(value) for key, value in item.items() if key not in {"_id", "api_key_encrypted"}}
+    return {
+        key: _json_safe(value)
+        for key, value in item.items()
+        if key not in {"_id", "api_key_encrypted"}
+    }
 
 
 def _worker_status(worker: dict[str, Any] | None, default: str) -> str:
@@ -515,7 +710,11 @@ def _worker_health_row(component: str, worker: dict[str, Any] | None) -> dict[st
 
 def _provider_health_row(provider_type: str, provider: dict[str, Any] | None) -> dict[str, Any]:
     if not provider:
-        return {"component": f"{provider_type} provider", "status": "unconfigured", "enabled": False}
+        return {
+            "component": f"{provider_type} provider",
+            "status": "unconfigured",
+            "enabled": False,
+        }
     health_status = "healthy" if provider.get("last_test_status") == "success" else "degraded"
     if not provider.get("enabled", False):
         health_status = "disabled"
@@ -533,6 +732,7 @@ def _provider_health_row(provider_type: str, provider: dict[str, Any] | None) ->
 def _coerce_id(value: str) -> Any:
     try:
         from bson import ObjectId
+
         if ObjectId.is_valid(value):
             return ObjectId(value)
     except Exception:

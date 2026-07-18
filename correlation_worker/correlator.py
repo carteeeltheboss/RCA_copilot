@@ -61,7 +61,18 @@ def parse_event_timestamp(value: Any) -> datetime | None:
         return value.astimezone(UTC)
 
     if isinstance(value, (int, float)):
-        return datetime.fromtimestamp(float(value), tz=UTC)
+        timestamp = float(value)
+        magnitude = abs(timestamp)
+        if magnitude >= 1e18:
+            timestamp /= 1e9
+        elif magnitude >= 1e15:
+            timestamp /= 1e6
+        elif magnitude >= 1e12:
+            timestamp /= 1e3
+        try:
+            return datetime.fromtimestamp(timestamp, tz=UTC)
+        except (OverflowError, OSError, ValueError):
+            return None
 
     if isinstance(value, str):
         normalized = value.strip()

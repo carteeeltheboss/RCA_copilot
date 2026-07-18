@@ -199,4 +199,3 @@ def parse_raw_log(document: dict[str, Any], parser_version: str) -> dict[str, An
         base["parse_error"] = str(exc)
 
     return base
-

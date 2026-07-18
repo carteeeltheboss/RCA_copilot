@@ -3,25 +3,24 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
-BACKEND_URL = os.environ.get("RCA_BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
+from validation.scripts.common import backend_url, load_config
 
 
-def get_json(path: str) -> object:
-    with urllib.request.urlopen(f"{BACKEND_URL}{path}", timeout=20) as response:
+def get_json(base_url: str, path: str) -> object:
+    with urllib.request.urlopen(f"{base_url}{path}", timeout=20) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
-def search(query: dict[str, str]) -> list[dict[str, object]]:
+def search(base_url: str, query: dict[str, str]) -> list[dict[str, object]]:
     params = {"page_size": "20", "sort": "newest", **{k: v for k, v in query.items() if v}}
     path = "/api/v1/incidents?" + urllib.parse.urlencode(params)
-    data = get_json(path)
+    data = get_json(base_url, path)
     return data.get("items", []) if isinstance(data, dict) else []
 
 
@@ -46,6 +45,7 @@ def main() -> int:
     parser.add_argument("--interval", type=int, default=5)
     parser.add_argument("--json-out")
     args = parser.parse_args()
+    base_url = backend_url(load_config())
 
     deadline = time.time() + args.timeout
     last_seen: dict[str, object] | None = None
@@ -58,7 +58,7 @@ def main() -> int:
             {"q": args.request_id},
         ):
             try:
-                candidates.extend(search(query))
+                candidates.extend(search(base_url, query))
             except Exception:
                 pass
         match = best_match(candidates, args.request_id, args.resource_id, args.message_fragment)

@@ -5,10 +5,11 @@ import time
 from pathlib import Path
 
 from correlation_worker.config import CorrelationConfig
+from rca_copilot.service import prepare_service
 
 
 def main() -> int:
-    config = CorrelationConfig.from_env()
+    config = CorrelationConfig.from_conf(prepare_service())
     path = Path(config.health_file)
     if not path.exists():
         return 1

@@ -36,7 +36,9 @@ class IndexView(views.HorizonTemplateView):
                 messages.info(request, "Provider disabled.")
             elif action == "rollback" and provider_id:
                 version = request.POST.get("config_version")
-                self.extra_result = client.post(f"/api/v1/providers/{provider_id}/rollback/{version}")
+                self.extra_result = client.post(
+                    f"/api/v1/providers/{provider_id}/rollback/{version}"
+                )
                 messages.success(request, "Provider rolled back.")
             elif action == "delete" and provider_id:
                 client.delete(f"/api/v1/providers/{provider_id}")
@@ -52,7 +54,9 @@ class IndexView(views.HorizonTemplateView):
         try:
             providers = client.get("/api/v1/providers").get("items", [])
             histories = {
-                provider["provider_id"]: client.get(f"/api/v1/providers/{provider['provider_id']}/history").get("items", [])[:5]
+                provider["provider_id"]: client.get(
+                    f"/api/v1/providers/{provider['provider_id']}/history"
+                ).get("items", [])[:5]
                 for provider in providers[:20]
             }
             context.update({"providers": providers, "histories": histories, "backend_error": None})

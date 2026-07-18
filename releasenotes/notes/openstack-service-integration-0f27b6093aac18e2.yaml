@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Adds pbr packaging, oslo.config and oslo.log integration, six service
+    entry points, systemd units, a DevStack plugin, and Horizon deployment.
+upgrade:
+  - |
+    Service configuration now uses ``rca-copilot.conf`` instead of process
+    environment variables.

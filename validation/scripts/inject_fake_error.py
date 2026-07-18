@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -11,12 +10,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS = ROOT / "validation" / "results"
-BACKEND_URL = os.environ.get("RCA_BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
+from validation.scripts.common import backend_url, load_config
 
 
-def post_json(path: str, payload: dict[str, object]) -> object:
+def post_json(base_url: str, path: str, payload: dict[str, object]) -> object:
     req = urllib.request.Request(
-        f"{BACKEND_URL}{path}",
+        f"{base_url}{path}",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
@@ -29,6 +28,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Inject a safe synthetic OpenStack-like error through /logs/batch.")
     parser.add_argument("--json-out", help="Optional path for injection metadata JSON.")
     args = parser.parse_args()
+    base_url = backend_url(load_config())
 
     RESULTS.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc)
@@ -79,10 +79,10 @@ def main() -> int:
         },
     ]
 
-    response = post_json("/logs/batch", {"records": records})
+    response = post_json(base_url, "/logs/batch", {"records": records})
     metadata = {
         "injected_at": now.isoformat(),
-        "backend_url": BACKEND_URL,
+        "backend_url": base_url,
         "request_id": request_id,
         "resource_id": resource_id,
         "unit": unit,

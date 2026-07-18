@@ -92,7 +92,9 @@ def test_batch_client_retries_until_success(monkeypatch) -> None:
         attempts.append((url, json, timeout))
         if len(attempts) == 1:
             raise httpx.ConnectError("temporary failure")
-        return httpx.Response(200, json={"received_count": 1, "inserted_count": 1, "duplicate_count": 0})
+        return httpx.Response(
+            200, json={"received_count": 1, "inserted_count": 1, "duplicate_count": 0}
+        )
 
     monkeypatch.setattr(httpx, "post", fake_post)
 
@@ -160,7 +162,9 @@ def test_collector_stop_terminates_active_journalctl(tmp_path: Path) -> None:
     assert process.terminated is True
 
 
-def test_collector_shutdown_flushes_pending_batch_and_exits_zero(monkeypatch, tmp_path: Path) -> None:
+def test_collector_shutdown_flushes_pending_batch_and_exits_zero(
+    monkeypatch, tmp_path: Path
+) -> None:
     sent_batches = []
 
     class FakeClient:

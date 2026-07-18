@@ -10,6 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from parser_worker.config import ParserConfig
 from parser_worker.repository import ParserRepository
+from rca_copilot.service import prepare_service
 
 
 class ParserWorker:
@@ -54,7 +55,7 @@ class ParserWorker:
 
 
 async def async_main() -> int:
-    worker = ParserWorker(ParserConfig.from_env())
+    worker = ParserWorker(ParserConfig.from_conf(prepare_service()))
     loop = asyncio.get_running_loop()
     for signum in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signum, worker.stop)

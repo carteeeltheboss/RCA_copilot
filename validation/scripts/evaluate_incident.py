@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import urllib.error
 import urllib.request
@@ -13,28 +12,15 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS = ROOT / "validation" / "results"
-BACKEND_URL = os.environ.get("RCA_BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
+from validation.scripts.common import backend_url, load_config
 
 
-def load_env() -> None:
-    env_path = ROOT / ".env"
-    if not env_path.exists():
-        return
-    for line in env_path.read_text().splitlines():
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key, value)
-
-
-def request_json(path: str, method: str = "GET", token: bool = False) -> tuple[int, object]:
+def request_json(base_url: str, path: str, method: str = "GET", service_token: str | None = None) -> tuple[int, object]:
     headers = {}
     data = None
-    if token:
-        service_token = os.environ.get("RCA_INTERNAL_SERVICE_TOKEN")
-        if service_token:
-            headers["X-RCA-Service-Token"] = service_token
-    req = urllib.request.Request(f"{BACKEND_URL}{path}", data=data, headers=headers, method=method)
+    if service_token:
+        headers["X-RCA-Service-Token"] = service_token
+    req = urllib.request.Request(f"{base_url}{path}", data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=150) as response:
             return response.status, json.loads(response.read().decode("utf-8"))
@@ -66,13 +52,14 @@ def main() -> int:
     parser.add_argument("--json-out")
     args = parser.parse_args()
 
-    load_env()
+    conf = load_config()
+    base_url = backend_url(conf)
     RESULTS.mkdir(parents=True, exist_ok=True)
 
-    detail_status, detail = request_json(f"/api/v1/incidents/{args.incident_id}")
-    graph_status, graph = request_json(f"/api/v1/incidents/{args.incident_id}/graph")
-    timeline_status, timeline = request_json(f"/api/v1/incidents/{args.incident_id}/timeline")
-    explain_status, explain = request_json(f"/api/v1/incidents/{args.incident_id}/explain", method="POST", token=True)
+    detail_status, detail = request_json(base_url, f"/api/v1/incidents/{args.incident_id}")
+    graph_status, graph = request_json(base_url, f"/api/v1/incidents/{args.incident_id}/graph")
+    timeline_status, timeline = request_json(base_url, f"/api/v1/incidents/{args.incident_id}/timeline")
+    explain_status, explain = request_json(base_url, f"/api/v1/incidents/{args.incident_id}/explain", method="POST", service_token=conf.api.internal_service_token)
 
     if detail_status == 404:
         print(f"Incident not found: {args.incident_id}", file=sys.stderr)
@@ -204,4 +191,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -86,8 +86,7 @@ class ParserRepository:
     async def process_batch(self, batch_size: int) -> int:
         raw_documents = await self.fetch_unprocessed(batch_size)
         parsed_documents = [
-            parse_raw_log(document, self.parser_version)
-            for document in raw_documents
+            parse_raw_log(document, self.parser_version) for document in raw_documents
         ]
         return await self.upsert_parsed(parsed_documents)
 

@@ -5,10 +5,11 @@ import time
 from pathlib import Path
 
 from parser_worker.config import ParserConfig
+from rca_copilot.service import prepare_service
 
 
 def main() -> int:
-    config = ParserConfig.from_env()
+    config = ParserConfig.from_conf(prepare_service())
     path = Path(config.health_file)
     if not path.exists():
         return 1
@@ -27,4 +28,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

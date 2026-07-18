@@ -1,0 +1,10 @@
+# Placeholder policy names for migration to oslo.policy and Keystone RBAC.
+# The API continues to enforce its existing internal-token authorization until
+# these rules are wired to authenticated request context.
+"rca_copilot:providers:list": "role:admin"
+"rca_copilot:providers:show": "role:admin"
+"rca_copilot:providers:create": "role:admin"
+"rca_copilot:providers:update": "role:admin"
+"rca_copilot:providers:delete": "role:admin"
+"rca_copilot:providers:activate": "role:admin"
+"rca_copilot:providers:rollback": "role:admin"

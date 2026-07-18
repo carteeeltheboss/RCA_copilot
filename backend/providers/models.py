@@ -5,7 +5,9 @@ from typing import Any, Literal
 
 
 ProviderType = Literal["llm", "embedding", "reranker", "vector_store"]
-ProviderKind = Literal["ollama", "openai_compatible", "gemini", "anthropic", "custom_http", "chroma"]
+ProviderKind = Literal[
+    "ollama", "openai_compatible", "gemini", "anthropic", "custom_http", "chroma"
+]
 Capability = Literal["llm", "embedding", "reranker", "vision", "streaming", "model_listing"]
 
 

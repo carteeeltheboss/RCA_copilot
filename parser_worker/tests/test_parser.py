@@ -57,7 +57,7 @@ def test_multiline_logs_are_preserved_and_parsed() -> None:
         "2026-07-05 10:00:00.000 1234 ERROR nova.compute.manager "
         f"[req-{REQUEST_UUID}] Build failed\n"
         'Traceback (most recent call last):\n  File "/opt/stack/nova/nova/compute.py", '
-        'line 42, in spawn\nException: failed'
+        "line 42, in spawn\nException: failed"
     )
 
     assert "Traceback" in str(parsed["message"])
@@ -132,7 +132,9 @@ class FakeStateCollection:
     def __init__(self) -> None:
         self.document: dict[str, object] = {}
 
-    async def update_one(self, query: dict[str, object], update: dict[str, object], upsert: bool = False) -> None:
+    async def update_one(
+        self, query: dict[str, object], update: dict[str, object], upsert: bool = False
+    ) -> None:
         self.document.update(update.get("$set", {}))  # type: ignore[arg-type]
         self.document.update(update.get("$setOnInsert", {}))  # type: ignore[arg-type]
 

@@ -5,10 +5,11 @@ import time
 from pathlib import Path
 
 from enrichment_worker.config import EnrichmentConfig
+from rca_copilot.service import prepare_service
 
 
 def main() -> int:
-    config = EnrichmentConfig.from_env()
+    config = EnrichmentConfig.from_conf(prepare_service())
     path = Path(config.health_file)
     if not path.exists():
         return 1

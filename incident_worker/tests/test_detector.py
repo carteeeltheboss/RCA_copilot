@@ -93,7 +93,9 @@ def test_negated_error_level_is_suppressed() -> None:
 
 
 def test_real_build_failed_creates_seed() -> None:
-    detection = detect_incident_seed(event("seed", level="DEBUG", message="Build failed due to timeout"))
+    detection = detect_incident_seed(
+        event("seed", level="DEBUG", message="Build failed due to timeout")
+    )
 
     assert detection is not None
     assert detection.seed_reason == "message:failed_or_failure"
@@ -318,7 +320,9 @@ class FakeParsedCollection:
         del indexes
 
     def find(self, query: dict[str, Any]) -> FakeCursor:
-        return FakeCursor([document for document in self.documents if matches_query(document, query)])
+        return FakeCursor(
+            [document for document in self.documents if matches_query(document, query)]
+        )
 
 
 class FakeEdgeCollection:

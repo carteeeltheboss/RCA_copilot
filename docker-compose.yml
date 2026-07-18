@@ -33,22 +33,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-    environment:
-      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
-      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
-      MONGO_RAW_LOGS_COLLECTION: raw_logs
-      MONGO_PARSED_LOGS_COLLECTION: parsed_logs
-      MONGO_EVENT_EDGES_COLLECTION: event_edges
-      MONGO_INCIDENTS_COLLECTION: incidents
-      MONGO_WORKER_STATE_COLLECTION: worker_state
-      MONGO_PROVIDER_CONFIGS_COLLECTION: provider_configs
-      MONGO_CONFIG_AUDIT_LOG_COLLECTION: config_audit_log
-      RCA_INTERNAL_SERVICE_TOKEN: ${RCA_INTERNAL_SERVICE_TOKEN}
-      RCA_PROVIDER_MASTER_KEY: ${RCA_PROVIDER_MASTER_KEY}
-      RCA_PROVIDER_ALLOWED_CIDRS: ${RCA_PROVIDER_ALLOWED_CIDRS:-}
-      RCA_PROVIDER_ALLOWED_HOSTS: ${RCA_PROVIDER_ALLOWED_HOSTS:-}
-      RCA_PROVIDER_ALLOW_LOCALHOST: ${RCA_PROVIDER_ALLOW_LOCALHOST:-false}
-      RCA_PROVIDER_REQUEST_TIMEOUT_SECONDS: ${RCA_PROVIDER_REQUEST_TIMEOUT_SECONDS:-10}
+    volumes:
+      - ./etc/rca-copilot.docker.conf:/etc/rca-copilot/rca-copilot.conf:ro
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -71,22 +57,13 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-    environment:
-      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
-      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
-      MONGO_RAW_LOGS_COLLECTION: raw_logs
-      MONGO_PARSED_LOGS_COLLECTION: parsed_logs
-      MONGO_WORKER_STATE_COLLECTION: worker_state
-      PARSER_WORKER_STATE_KEY: parser_worker_v1
-      PARSER_VERSION: ${PARSER_VERSION:-parser-v1}
-      PARSER_BATCH_SIZE: ${PARSER_BATCH_SIZE:-100}
-      PARSER_POLL_INTERVAL_SECONDS: ${PARSER_POLL_INTERVAL_SECONDS:-2}
-      PARSER_HEALTH_FILE: /tmp/rca-copilot-parser-worker.health
+    volumes:
+      - ./etc/rca-copilot.docker.conf:/etc/rca-copilot/rca-copilot.conf:ro
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "python -m parser_worker.healthcheck",
+          "python -m parser_worker.healthcheck --config-file /etc/rca-copilot/rca-copilot.conf",
         ]
       interval: 10s
       timeout: 5s
@@ -102,26 +79,13 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-    environment:
-      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
-      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
-      MONGO_PARSED_LOGS_COLLECTION: parsed_logs
-      MONGO_EVENT_EDGES_COLLECTION: event_edges
-      MONGO_WORKER_STATE_COLLECTION: worker_state
-      CORRELATION_WORKER_STATE_KEY: correlation_worker_v1
-      CORRELATION_VERSION: ${CORRELATION_VERSION:-correlation-v1}
-      CORRELATION_BATCH_SIZE: ${CORRELATION_BATCH_SIZE:-100}
-      CORRELATION_POLL_INTERVAL_SECONDS: ${CORRELATION_POLL_INTERVAL_SECONDS:-2}
-      CORRELATION_REQUEST_ID_MAX_GAP_SECONDS: ${CORRELATION_REQUEST_ID_MAX_GAP_SECONDS:-300}
-      CORRELATION_RESOURCE_ID_MAX_GAP_SECONDS: ${CORRELATION_RESOURCE_ID_MAX_GAP_SECONDS:-600}
-      CORRELATION_MAX_EVENTS_PER_GROUP: ${CORRELATION_MAX_EVENTS_PER_GROUP:-100}
-      CORRELATION_SKIP_PERIODIC_GROUPS: ${CORRELATION_SKIP_PERIODIC_GROUPS:-true}
-      CORRELATION_HEALTH_FILE: /tmp/rca-copilot-correlation-worker.health
+    volumes:
+      - ./etc/rca-copilot.docker.conf:/etc/rca-copilot/rca-copilot.conf:ro
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "python -m correlation_worker.healthcheck",
+          "python -m correlation_worker.healthcheck --config-file /etc/rca-copilot/rca-copilot.conf",
         ]
       interval: 10s
       timeout: 5s
@@ -137,28 +101,13 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-    environment:
-      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
-      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
-      MONGO_PARSED_LOGS_COLLECTION: parsed_logs
-      MONGO_EVENT_EDGES_COLLECTION: event_edges
-      MONGO_INCIDENTS_COLLECTION: incidents
-      MONGO_WORKER_STATE_COLLECTION: worker_state
-      INCIDENT_WORKER_STATE_KEY: incident_worker_v1
-      CORRELATION_VERSION: ${CORRELATION_VERSION:-correlation-v1}
-      INCIDENT_VERSION: ${INCIDENT_VERSION:-incident-v1}
-      INCIDENT_BATCH_SIZE: ${INCIDENT_BATCH_SIZE:-100}
-      INCIDENT_POLL_INTERVAL_SECONDS: ${INCIDENT_POLL_INTERVAL_SECONDS:-2}
-      INCIDENT_MAX_DEPTH: ${INCIDENT_MAX_DEPTH:-3}
-      INCIDENT_MAX_EVENTS: ${INCIDENT_MAX_EVENTS:-100}
-      INCIDENT_WINDOW_BEFORE_SECONDS: ${INCIDENT_WINDOW_BEFORE_SECONDS:-600}
-      INCIDENT_WINDOW_AFTER_SECONDS: ${INCIDENT_WINDOW_AFTER_SECONDS:-120}
-      INCIDENT_HEALTH_FILE: /tmp/rca-copilot-incident-worker.health
+    volumes:
+      - ./etc/rca-copilot.docker.conf:/etc/rca-copilot/rca-copilot.conf:ro
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "python -m incident_worker.healthcheck",
+          "python -m incident_worker.healthcheck --config-file /etc/rca-copilot/rca-copilot.conf",
         ]
       interval: 10s
       timeout: 5s
@@ -174,23 +123,13 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-    environment:
-      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-rca_admin}:${MONGO_INITDB_ROOT_PASSWORD:-change-me}@mongodb:27017/${MONGO_INITDB_DATABASE:-rca_copilot}?authSource=admin
-      MONGO_DATABASE: ${MONGO_INITDB_DATABASE:-rca_copilot}
-      MONGO_PARSED_LOGS_COLLECTION: parsed_logs
-      MONGO_EVENT_EDGES_COLLECTION: event_edges
-      MONGO_INCIDENTS_COLLECTION: incidents
-      MONGO_WORKER_STATE_COLLECTION: worker_state
-      ENRICHMENT_WORKER_STATE_KEY: enrichment_worker_v1
-      ENRICHMENT_VERSION: ${ENRICHMENT_VERSION:-enrichment-v1}
-      ENRICHMENT_BATCH_SIZE: ${ENRICHMENT_BATCH_SIZE:-100}
-      ENRICHMENT_POLL_INTERVAL_SECONDS: ${ENRICHMENT_POLL_INTERVAL_SECONDS:-2}
-      ENRICHMENT_HEALTH_FILE: /tmp/rca-copilot-enrichment-worker.health
+    volumes:
+      - ./etc/rca-copilot.docker.conf:/etc/rca-copilot/rca-copilot.conf:ro
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "python -m enrichment_worker.healthcheck",
+          "python -m enrichment_worker.healthcheck --config-file /etc/rca-copilot/rca-copilot.conf",
         ]
       interval: 10s
       timeout: 5s

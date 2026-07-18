@@ -84,7 +84,9 @@ async def list_incidents(
 
 
 @router.get("/incidents/{incident_id}")
-async def get_incident(incident_id: str, repository: RCARepository = Depends(get_rca_repository)) -> dict[str, Any]:
+async def get_incident(
+    incident_id: str, repository: RCARepository = Depends(get_rca_repository)
+) -> dict[str, Any]:
     incident = await repository.get_incident(incident_id)
     if not incident:
         raise HTTPException(status_code=404, detail={"error": "incident not found"})
@@ -128,10 +130,16 @@ async def get_incident_event(
 
 
 @router.post("/incidents/{incident_id}/similar")
-async def ai_unavailable(incident_id: str, _: None = Depends(require_internal_token)) -> dict[str, Any]:
+async def ai_unavailable(
+    incident_id: str, _: None = Depends(require_internal_token)
+) -> dict[str, Any]:
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail={"status": "unavailable", "reason": "No active LLM provider configured", "incident_id": incident_id},
+        detail={
+            "status": "unavailable",
+            "reason": "No active LLM provider configured",
+            "incident_id": incident_id,
+        },
     )
 
 
@@ -149,13 +157,21 @@ async def explain_incident(
     if not provider:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "unavailable", "reason": "No active LLM provider configured", "incident_id": incident_id},
+            detail={
+                "status": "unavailable",
+                "reason": "No active LLM provider configured",
+                "incident_id": incident_id,
+            },
         )
     adapter = registry.get(provider["provider_type"], provider["provider_kind"])
     if adapter is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "unavailable", "reason": "No supported LLM provider adapter configured", "incident_id": incident_id},
+            detail={
+                "status": "unavailable",
+                "reason": "No supported LLM provider adapter configured",
+                "incident_id": incident_id,
+            },
         )
 
     package = _build_evidence_package(evidence)
@@ -163,10 +179,18 @@ async def explain_incident(
     if not result.success:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "unavailable", "reason": "Active LLM provider is unreachable", "incident_id": incident_id},
+            detail={
+                "status": "unavailable",
+                "reason": "Active LLM provider is unreachable",
+                "incident_id": incident_id,
+            },
         )
 
-    answer_text = str((result.data or {}).get("answer_text") or "") if isinstance(result.data, dict) else str(result.data or "")
+    answer_text = (
+        str((result.data or {}).get("answer_text") or "")
+        if isinstance(result.data, dict)
+        else str(result.data or "")
+    )
     answer = _parse_answer(answer_text)
     return {
         "incident_id": incident_id,
@@ -225,7 +249,12 @@ async def get_provider(
     if not provider:
         raise HTTPException(status_code=404, detail={"error": "provider not found"})
     sanitized = await repository.list_providers()
-    return next(item for item in sanitized if item["provider_id"] == provider_id and item["config_version"] == provider["config_version"])
+    return next(
+        item
+        for item in sanitized
+        if item["provider_id"] == provider_id
+        and item["config_version"] == provider["config_version"]
+    )
 
 
 @router.put("/providers/{provider_id}")
@@ -377,14 +406,18 @@ def _build_evidence_package(evidence: dict[str, Any]) -> dict[str, Any]:
         "incident_id": incident.get("incident_id"),
         "severity": incident.get("severity"),
         "status": incident.get("status"),
-        "seed_reason": incident.get("seed_reason") or incident.get("reason") or incident.get("title"),
+        "seed_reason": incident.get("seed_reason")
+        or incident.get("reason")
+        or incident.get("title"),
         "service": incident.get("service"),
         "started_at": incident.get("started_at"),
         "duration_ms": incident.get("duration_ms"),
         "event_count": incident.get("event_count", len(incident.get("event_ids") or [])),
         "edge_count": incident.get("edge_count", len(incident.get("edge_ids") or [])),
         "involved_services": list(incident.get("services") or []),
-        "request_ids": _unique_compact([incident.get("request_id"), *(incident.get("request_ids") or [])], limit=20),
+        "request_ids": _unique_compact(
+            [incident.get("request_id"), *(incident.get("request_ids") or [])], limit=20
+        ),
         "resource_ids": _unique_compact(incident.get("resource_ids") or [], limit=20),
         "deterministic_summary": incident.get("summary"),
         "enrichment": {
@@ -466,7 +499,11 @@ def _unique_compact(values: list[Any], limit: int) -> list[str]:
 
 def _truncate_nested(value: Any) -> Any:
     if isinstance(value, dict):
-        return {str(key): _truncate_nested(val) for key, val in value.items() if str(key).lower() not in {"raw", "raw_log", "full_log", "payload"}}
+        return {
+            str(key): _truncate_nested(val)
+            for key, val in value.items()
+            if str(key).lower() not in {"raw", "raw_log", "full_log", "payload"}
+        }
     if isinstance(value, list):
         return [_truncate_nested(item) for item in value[:20]]
     if isinstance(value, str):

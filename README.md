@@ -2,6 +2,39 @@
 
 Local-first root cause analysis support for OpenStack logs.
 
+RCA Copilot is packaged as an OpenStack-style service. A DevStack deployment
+is enabled with ``enable_plugin rca-copilot <repository-url>``; ``stack.sh``
+then installs, configures, registers, and starts the API and all five pipeline
+processes. Production hosts can use ``pip install .`` and the six units in
+``systemd/``. Docker Compose remains supported for local, non-integrated use.
+
+## OpenStack installation
+
+Add this to ``devstack/local.conf`` before stacking:
+
+```ini
+[[local|localrc]]
+enable_plugin rca-copilot https://example.invalid/RCA_copilot.git
+RCA_COPILOT_MONGO_URI=mongodb://rca_admin:password@127.0.0.1:27017/rca_copilot?authSource=admin
+```
+
+For a packaged host installation:
+
+```console
+python3 -m pip install .
+sudo install -d /etc/rca-copilot
+sudo install -m 0640 etc/rca-copilot.conf.sample /etc/rca-copilot/rca-copilot.conf
+sudo install -m 0644 systemd/*.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now rca-copilot-api rca-copilot-parser-worker \
+  rca-copilot-correlation-worker rca-copilot-incident-worker \
+  rca-copilot-enrichment-worker rca-copilot-collector
+```
+
+All binaries accept ``--config-file`` and default to
+``/etc/rca-copilot/rca-copilot.conf``. Generate an annotated sample with
+``tox -e genconfig``.
+
 OpenStack RCA Copilot collects host journald records, stores the raw evidence,
 parses operational signals, correlates related events, detects incident
 candidates, and enriches each incident with a deterministic investigation
@@ -182,16 +215,16 @@ redirects are disabled, requests have timeouts and response-size limits, and
 metadata, link-local, loopback, private, or reserved addresses are blocked
 unless explicitly allowed.
 
-Provider environment variables:
+Provider configuration options in the ``[provider]`` and ``[api]`` groups:
 
-| Variable | Purpose |
+| Option | Purpose |
 |----------|---------|
-| `RCA_INTERNAL_SERVICE_TOKEN` | Internal server-side token for Horizon/provider API calls |
-| `RCA_PROVIDER_MASTER_KEY` | Master key used to encrypt provider API keys |
-| `RCA_PROVIDER_ALLOWED_CIDRS` | Comma-separated CIDRs allowed for provider URLs, such as a Tailscale range |
-| `RCA_PROVIDER_ALLOWED_HOSTS` | Comma-separated hostnames exempt from DNS/IP blocking |
-| `RCA_PROVIDER_ALLOW_LOCALHOST` | Allows localhost provider URLs when set to true |
-| `RCA_PROVIDER_REQUEST_TIMEOUT_SECONDS` | Default provider request timeout |
+| `[api] internal_service_token` | Internal server-side token for Horizon/provider API calls |
+| `[provider] master_key` | Master key used to encrypt provider API keys |
+| `[provider] allowed_cidrs` | CIDRs allowed for provider URLs, such as a Tailscale range |
+| `[provider] allowed_hosts` | Hostnames exempt from DNS/IP blocking |
+| `[provider] allow_localhost` | Allows localhost provider URLs when true |
+| `[provider] request_timeout_seconds` | Default provider request timeout |
 
 To add Ollama later, create an `ollama` provider with a backend-reachable base
 URL and model name, test it, then activate it. To add an OpenAI-compatible

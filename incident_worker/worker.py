@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import signal
 import sys
 import time
@@ -12,9 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from incident_worker.config import IncidentConfig
 from incident_worker.repository import IncidentRepository
-
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+from rca_copilot.service import prepare_service
 
 
 class IncidentWorker:
@@ -65,7 +62,7 @@ class IncidentWorker:
 
 
 async def async_main() -> int:
-    worker = IncidentWorker(IncidentConfig.from_env())
+    worker = IncidentWorker(IncidentConfig.from_conf(prepare_service()))
     loop = asyncio.get_running_loop()
     for signum in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signum, worker.stop)

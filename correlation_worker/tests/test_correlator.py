@@ -7,12 +7,19 @@ from correlation_worker.correlator import (
     build_edge,
     build_edges_for_group,
     build_edges_for_events,
+    parse_event_timestamp,
 )
 from correlation_worker.repository import CorrelationBatchMetrics, CorrelationRepository
 
 
 REQUEST_RULE = CorrelationRule("same_request_id", 1.0, timedelta(minutes=5))
 RESOURCE_RULE = CorrelationRule("shared_resource_id", 0.9, timedelta(minutes=10))
+
+
+def test_parse_journald_microsecond_timestamp() -> None:
+    parsed = parse_event_timestamp(1_720_000_000_000_000)
+    assert parsed is not None
+    assert parsed.year == 2024
 
 
 def event(
@@ -173,7 +180,9 @@ class FakeStateCollection:
     def __init__(self) -> None:
         self.document: dict[str, object] = {}
 
-    async def update_one(self, query: dict[str, object], update: dict[str, object], upsert: bool = False) -> None:
+    async def update_one(
+        self, query: dict[str, object], update: dict[str, object], upsert: bool = False
+    ) -> None:
         self.document.update(update.get("$set", {}))  # type: ignore[arg-type]
         self.document.update(update.get("$setOnInsert", {}))  # type: ignore[arg-type]
 

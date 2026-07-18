@@ -1,0 +1,17 @@
+- job:
+    name: rca-copilot-tox-release-notes
+    parent: openstack-tox
+    vars:
+      tox_envlist: releasenotes
+
+- project:
+    check:
+      jobs:
+        - openstack-tox-pep8
+        - openstack-tox-py311
+        - rca-copilot-tox-release-notes
+    gate:
+      jobs:
+        - openstack-tox-pep8
+        - openstack-tox-py311
+        - rca-copilot-tox-release-notes

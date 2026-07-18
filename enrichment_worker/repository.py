@@ -57,11 +57,7 @@ class EnrichmentRepository:
     async def fetch_batch(self, batch_size: int) -> list[dict[str, Any]]:
         checkpoint = await self.load_checkpoint()
         query = self._batch_query(checkpoint)
-        cursor = (
-            self.incident_collection.find(query)
-            .sort("_id", ASCENDING)
-            .limit(batch_size)
-        )
+        cursor = self.incident_collection.find(query).sort("_id", ASCENDING).limit(batch_size)
         return await cursor.to_list(length=batch_size)
 
     async def process_batch(self, batch_size: int) -> EnrichmentBatchMetrics:
@@ -111,10 +107,7 @@ class EnrichmentRepository:
         while True:
             batch_metrics = await self.process_batch(batch_size)
             metrics.append(batch_metrics)
-            if (
-                batch_metrics.incidents_scanned < batch_size
-                or batch_metrics.incidents_failed > 0
-            ):
+            if batch_metrics.incidents_scanned < batch_size or batch_metrics.incidents_failed > 0:
                 return metrics
 
     async def enrich_incident(self, incident: dict[str, Any]) -> bool:

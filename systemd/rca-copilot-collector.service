@@ -1,0 +1,13 @@
+[Unit]
+Description=RCA Copilot journald collector
+After=network-online.target rca-copilot-api.service
+
+[Service]
+User=rca-copilot
+Group=systemd-journal
+StateDirectory=rca-copilot
+ExecStart=/usr/bin/rca-copilot-collector --config-file /etc/rca-copilot/rca-copilot.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

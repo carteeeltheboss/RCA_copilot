@@ -31,10 +31,14 @@ class ExplainEndpointTests(SimpleTestCase):
         from rca_copilot_horizon.client import RCAClientError
         from rca_copilot_horizon.dashboards.rca_copilot.investigation import views
 
-        client_cls.return_value.post.side_effect = RCAClientError("provider unavailable", status=503)
+        client_cls.return_value.post.side_effect = RCAClientError(
+            "provider unavailable", status=503
+        )
         request = self.factory.post("/dashboard/rca_copilot/investigation/incident-1/explain/")
 
         response = views.explain(request, "incident-1")
 
         self.assertEqual(response.status_code, 503)
-        self.assertIn(b"AI explanation failed. Backend returned: provider unavailable", response.content)
+        self.assertIn(
+            b"AI explanation failed. Backend returned: provider unavailable", response.content
+        )

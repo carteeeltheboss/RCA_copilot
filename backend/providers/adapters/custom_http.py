@@ -19,7 +19,9 @@ class CustomHTTPAdapter(BaseProviderAdapter):
         normalized = dict(result.normalized_config)
         capabilities = set(normalized.get("capabilities") or [])
         if not capabilities:
-            normalized["capabilities"] = sorted(self.default_capabilities(normalized["provider_type"]))
+            normalized["capabilities"] = sorted(
+                self.default_capabilities(normalized["provider_type"])
+            )
         return ValidationResult(True, normalized_config=normalized)
 
     def health_url(self, base_url: str) -> str:

@@ -98,11 +98,7 @@ class CorrelationRepository:
         if self._last_seen_id is not None:
             query["_id"] = {"$gt": self._last_seen_id}
 
-        cursor = (
-            self.parsed_collection.find(query)
-            .sort("_id", ASCENDING)
-            .limit(batch_size)
-        )
+        cursor = self.parsed_collection.find(query).sort("_id", ASCENDING).limit(batch_size)
         documents = await cursor.to_list(length=batch_size)
         if documents:
             self._last_seen_id = documents[-1]["_id"]
@@ -197,7 +193,7 @@ class CorrelationRepository:
                 metrics.edges_inserted,
                 metrics.candidate_edges,
                 metrics.skipped_edges,
-        )
+            )
         return metrics
 
     async def heartbeat(self, metrics: CorrelationBatchMetrics | None = None) -> None:
@@ -236,7 +232,11 @@ class CorrelationRepository:
 
         existing_rule, timestamps, existing_datetime_query = group_refs[key]
         timestamps.append(event_timestamp)
-        group_refs[key] = (existing_rule, timestamps, existing_datetime_query and use_datetime_query)
+        group_refs[key] = (
+            existing_rule,
+            timestamps,
+            existing_datetime_query and use_datetime_query,
+        )
 
     async def _find_group_events(
         self,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import signal
 import sys
 import time
@@ -12,9 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from correlation_worker.config import CorrelationConfig
 from correlation_worker.repository import CorrelationRepository
-
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+from rca_copilot.service import prepare_service
 
 
 class CorrelationWorker:
@@ -63,7 +60,7 @@ class CorrelationWorker:
 
 
 async def async_main() -> int:
-    worker = CorrelationWorker(CorrelationConfig.from_env())
+    worker = CorrelationWorker(CorrelationConfig.from_conf(prepare_service()))
     loop = asyncio.get_running_loop()
     for signum in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signum, worker.stop)

@@ -1,14 +1,12 @@
 FROM python:3.12.4-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PBR_VERSION=0.1.0
 
 WORKDIR /app
 
-COPY parser_worker/requirements.txt ./parser-worker-requirements.txt
-COPY parser_worker/requirements-test.txt ./parser-worker-requirements-test.txt
-RUN pip install --no-cache-dir -r parser-worker-requirements.txt -r parser-worker-requirements-test.txt
+COPY . .
+RUN pip install --no-cache-dir .
 
-COPY parser_worker ./parser_worker
-
-CMD ["python", "-m", "parser_worker.worker"]
+CMD ["rca-copilot-parser-worker", "--config-file", "/etc/rca-copilot/rca-copilot.conf"]

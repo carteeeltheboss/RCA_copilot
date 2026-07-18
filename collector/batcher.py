@@ -24,7 +24,9 @@ class LogBatcher:
         return None
 
     def due(self) -> bool:
-        return bool(self.records) and self.clock() - self.last_flush_at >= self.flush_interval_seconds
+        return (
+            bool(self.records) and self.clock() - self.last_flush_at >= self.flush_interval_seconds
+        )
 
     def flush(self) -> list[dict[str, Any]]:
         batch = self.records

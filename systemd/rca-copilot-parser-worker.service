@@ -1,0 +1,11 @@
+[Unit]
+Description=RCA Copilot parser worker
+After=network-online.target mongod.service
+[Service]
+User=rca-copilot
+Group=rca-copilot
+StateDirectory=rca-copilot
+ExecStart=/usr/bin/rca-copilot-parser-worker --config-file /etc/rca-copilot/rca-copilot.conf
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target

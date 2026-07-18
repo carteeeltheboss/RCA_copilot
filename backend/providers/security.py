@@ -34,7 +34,9 @@ def normalize_and_validate_provider_url(url: str, settings: Settings) -> UrlVali
     if parsed.scheme not in {"http", "https"}:
         return UrlValidationResult(False, error="provider URL must use http or https")
     if parsed.username or parsed.password:
-        return UrlValidationResult(False, error="provider URL must not include embedded credentials")
+        return UrlValidationResult(
+            False, error="provider URL must not include embedded credentials"
+        )
     if not parsed.hostname:
         return UrlValidationResult(False, error="provider URL must include a host")
 
@@ -43,11 +45,16 @@ def normalize_and_validate_provider_url(url: str, settings: Settings) -> UrlVali
     if host in allowed_hosts:
         return UrlValidationResult(True, normalized_url=_normalize_url(parsed))
 
-    allowed_cidrs = [ipaddress.ip_network(item, strict=False) for item in _csv(settings.rca_provider_allowed_cidrs)]
+    allowed_cidrs = [
+        ipaddress.ip_network(item, strict=False)
+        for item in _csv(settings.rca_provider_allowed_cidrs)
+    ]
     try:
         addresses = {
             info[4][0]
-            for info in socket.getaddrinfo(host, parsed.port or _default_port(parsed.scheme), type=socket.SOCK_STREAM)
+            for info in socket.getaddrinfo(
+                host, parsed.port or _default_port(parsed.scheme), type=socket.SOCK_STREAM
+            )
         }
     except socket.gaierror:
         return UrlValidationResult(False, error="provider host could not be resolved")
@@ -59,9 +66,13 @@ def normalize_and_validate_provider_url(url: str, settings: Settings) -> UrlVali
         if any(ip in cidr for cidr in allowed_cidrs):
             continue
         if ip.is_loopback or ip.is_link_local or any(ip in network for network in BLOCKED_NETWORKS):
-            return UrlValidationResult(False, error="provider URL resolves to a blocked local or metadata address")
+            return UrlValidationResult(
+                False, error="provider URL resolves to a blocked local or metadata address"
+            )
         if (ip.is_private or ip.is_reserved) and not any(ip in cidr for cidr in allowed_cidrs):
-            return UrlValidationResult(False, error="provider URL resolves to a private address outside allowed CIDRs")
+            return UrlValidationResult(
+                False, error="provider URL resolves to a private address outside allowed CIDRs"
+            )
 
     return UrlValidationResult(True, normalized_url=_normalize_url(parsed))
 

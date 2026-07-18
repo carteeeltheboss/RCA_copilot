@@ -1,0 +1,8 @@
+prune latex
+prune manim_explainer
+prune .tox
+prune .venv
+recursive-exclude * __pycache__ *.py[cod]
+include LICENSE README.md CONTRIBUTING.rst
+recursive-include etc *.conf *.sample *.yaml
+recursive-include systemd *.service

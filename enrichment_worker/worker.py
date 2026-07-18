@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import signal
 import sys
 import time
@@ -11,9 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from enrichment_worker.config import EnrichmentConfig
 from enrichment_worker.repository import EnrichmentRepository
-
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+from rca_copilot.service import prepare_service
 
 
 class EnrichmentWorker:
@@ -59,7 +56,7 @@ class EnrichmentWorker:
 
 
 async def async_main() -> int:
-    worker = EnrichmentWorker(EnrichmentConfig.from_env())
+    worker = EnrichmentWorker(EnrichmentConfig.from_conf(prepare_service()))
     loop = asyncio.get_running_loop()
     for signum in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signum, worker.stop)

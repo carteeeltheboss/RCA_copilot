@@ -33,25 +33,17 @@ def build_enrichment_document(
         if event.get("request_id") not in (None, "")
     )
     resource_ids = _sorted_unique(
-        resource_id
-        for event in ordered_events
-        for resource_id in resource_values(event)
+        resource_id for event in ordered_events for resource_id in resource_values(event)
     )
     hosts = _sorted_unique(
-        str(event.get("host"))
-        for event in ordered_events
-        if event.get("host") not in (None, "")
+        str(event.get("host")) for event in ordered_events if event.get("host") not in (None, "")
     )
     levels = _sorted_unique(
         str(event.get("level")).upper()
         for event in ordered_events
         if event.get("level") not in (None, "")
     )
-    timestamps = [
-        entry["timestamp"]
-        for entry in timeline
-        if entry["timestamp"] is not None
-    ]
+    timestamps = [entry["timestamp"] for entry in timeline if entry["timestamp"] is not None]
     first_event_at = timestamps[0] if timestamps else None
     last_event_at = timestamps[-1] if timestamps else None
     duration_ms = _duration_ms(first_event_at, last_event_at)
@@ -110,7 +102,9 @@ def build_summary(
 def build_impact_summary(services: list[str], resource_ids: list[str]) -> str:
     service_text = _join_values(services) if services else "no observed services"
     resource_text = _join_values(resource_ids) if resource_ids else "no observed resources"
-    return f"Observed affected services: {service_text}. Observed affected resources: {resource_text}."
+    return (
+        f"Observed affected services: {service_text}. Observed affected resources: {resource_text}."
+    )
 
 
 def build_evidence_summary(

@@ -6,3 +6,9 @@
 -r enrichment_worker/requirements.txt
 pytest==8.3.2
 anyio==4.4.0
+tox>=4.0.0
+flake8>=7.0.0
+doc8>=1.1.0
+reno>=4.1.0
+oslo.config>=9.4.0
+build>=1.2.0

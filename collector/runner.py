@@ -11,6 +11,7 @@ from collector.client import BatchClient
 from collector.config import CollectorConfig
 from collector.journal import build_journalctl_command, parse_journal_json_line
 from collector.state import CursorState
+from rca_copilot.service import prepare_service
 
 
 class JournalCollector:
@@ -122,7 +123,7 @@ class JournalCollector:
 
 
 def main() -> int:
-    config = CollectorConfig.from_env()
+    config = CollectorConfig.from_conf(prepare_service())
     collector = JournalCollector(config)
     signal.signal(signal.SIGINT, collector.stop)
     signal.signal(signal.SIGTERM, collector.stop)

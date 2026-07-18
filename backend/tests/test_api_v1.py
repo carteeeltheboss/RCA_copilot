@@ -1,10 +1,10 @@
 import asyncio
-import os
 from copy import deepcopy
 from datetime import UTC, datetime
 from typing import Any
 
 from httpx import ASGITransport, AsyncClient
+from oslo_config import cfg
 
 from backend import main
 from backend.config import get_settings
@@ -14,6 +14,7 @@ from backend.providers.models import ProviderResult
 from backend.providers.registry import ProviderRegistry
 from backend.providers.security import SecretBox, normalize_and_validate_provider_url
 from backend.repository import RCARepository
+from rca_copilot.config import register_opts
 
 
 class FakeCursor:
@@ -54,7 +55,9 @@ class FakeCollection:
     async def find_one(self, query: dict[str, Any]) -> dict[str, Any] | None:
         return next((deepcopy(item) for item in self.documents if _matches(item, query)), None)
 
-    async def replace_one(self, query: dict[str, Any], document: dict[str, Any], upsert: bool = False) -> None:
+    async def replace_one(
+        self, query: dict[str, Any], document: dict[str, Any], upsert: bool = False
+    ) -> None:
         for index, item in enumerate(self.documents):
             if _matches(item, query):
                 self.documents[index] = deepcopy(document)
@@ -140,29 +143,23 @@ async def _client(repo: RCARepository):
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
 
-def _set_env(master_key: str | None = "unit-test-master-key") -> None:
+def _set_conf(master_key: str | None = "unit-test-master-key") -> None:
+    register_opts()
     get_settings.cache_clear()
-    os.environ["RCA_INTERNAL_SERVICE_TOKEN"] = "test-token"
-    os.environ["RCA_PROVIDER_ALLOWED_HOSTS"] = "provider.test"
-    if master_key is None:
-        os.environ.pop("RCA_PROVIDER_MASTER_KEY", None)
-    else:
-        os.environ["RCA_PROVIDER_MASTER_KEY"] = master_key
+    cfg.CONF.set_override("internal_service_token", "test-token", group="api")
+    cfg.CONF.set_override("allowed_hosts", ["provider.test"], group="provider")
+    cfg.CONF.set_override("master_key", master_key, group="provider")
 
 
-def _clear_env() -> None:
-    for key in [
-        "RCA_INTERNAL_SERVICE_TOKEN",
-        "RCA_PROVIDER_ALLOWED_HOSTS",
-        "RCA_PROVIDER_MASTER_KEY",
-        "RCA_PROVIDER_ALLOW_LOCALHOST",
-    ]:
-        os.environ.pop(key, None)
+def _clear_conf() -> None:
+    cfg.CONF.clear_override("internal_service_token", group="api")
+    cfg.CONF.clear_override("allowed_hosts", group="provider")
+    cfg.CONF.clear_override("master_key", group="provider")
     get_settings.cache_clear()
 
 
 def test_internal_service_token_required() -> None:
-    _set_env()
+    _set_conf()
     app = main.create_app(lifespan_context=None)
 
     async def _request():
@@ -172,7 +169,7 @@ def test_internal_service_token_required() -> None:
     try:
         response = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert response.status_code == 401
 
@@ -194,7 +191,9 @@ def _incident(**overrides: Any) -> dict[str, Any]:
         "request_ids": ["req-1"],
         "resource_ids": ["server-1"],
         "summary": "Deterministic summary",
-        "timeline": [{"timestamp": "2026-07-09T10:00:00Z", "message": "short event", "raw_log": "x" * 2000}],
+        "timeline": [
+            {"timestamp": "2026-07-09T10:00:00Z", "message": "short event", "raw_log": "x" * 2000}
+        ],
     }
     item.update(overrides)
     return item
@@ -261,8 +260,18 @@ def test_graph_and_timeline_endpoints_return_incident_evidence() -> None:
             ],
         )
     )
-    repo.parsed_logs.documents.append({"_id": "event-1", "service": "nova-compute", "level": "ERROR", "message": "build failed"})
-    repo.event_edges.documents.append({"_id": "edge-1", "source_event_id": "event-1", "target_event_id": "event-1", "reason": "same_request_id", "confidence": 1.0})
+    repo.parsed_logs.documents.append(
+        {"_id": "event-1", "service": "nova-compute", "level": "ERROR", "message": "build failed"}
+    )
+    repo.event_edges.documents.append(
+        {
+            "_id": "edge-1",
+            "source_event_id": "event-1",
+            "target_event_id": "event-1",
+            "reason": "same_request_id",
+            "confidence": 1.0,
+        }
+    )
 
     async def _request():
         async with await _client(repo) as client:
@@ -280,18 +289,21 @@ def test_graph_and_timeline_endpoints_return_incident_evidence() -> None:
 
 
 def test_no_provider_explain_returns_structured_503() -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
     repo.incidents.documents.append(_incident())
 
     async def _request():
         async with await _client(repo) as client:
-            return await client.post("/api/v1/incidents/incident-1/explain", headers={"X-RCA-Service-Token": "test-token"})
+            return await client.post(
+                "/api/v1/incidents/incident-1/explain",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
 
     try:
         response = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert response.status_code == 503
     assert response.json()["detail"]["status"] == "unavailable"
@@ -299,18 +311,20 @@ def test_no_provider_explain_returns_structured_503() -> None:
 
 
 def test_incident_not_found_returns_404() -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
     repo.provider_configs.documents.append(_active_provider())
 
     async def _request():
         async with await _client(repo) as client:
-            return await client.post("/api/v1/incidents/missing/explain", headers={"X-RCA-Service-Token": "test-token"})
+            return await client.post(
+                "/api/v1/incidents/missing/explain", headers={"X-RCA-Service-Token": "test-token"}
+            )
 
     try:
         response = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert response.status_code == 404
 
@@ -325,14 +339,16 @@ def test_secret_box_encrypts_and_decrypts_without_plaintext() -> None:
 
 def test_provider_url_rejects_metadata_endpoint() -> None:
     settings = get_settings()
-    result = normalize_and_validate_provider_url("http://169.254.169.254/latest/meta-data", settings)
+    result = normalize_and_validate_provider_url(
+        "http://169.254.169.254/latest/meta-data", settings
+    )
 
     assert not result.ok
     assert "blocked" in result.error
 
 
 def test_create_provider_draft_encrypts_secret_and_get_masks_secret() -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
 
     async def _request():
@@ -343,13 +359,15 @@ def test_create_provider_draft_encrypts_secret_and_get_masks_secret() -> None:
                 headers={"X-RCA-Service-Token": "test-token"},
             )
             provider_id = created.json()["provider_id"]
-            fetched = await client.get(f"/api/v1/providers/{provider_id}", headers={"X-RCA-Service-Token": "test-token"})
+            fetched = await client.get(
+                f"/api/v1/providers/{provider_id}", headers={"X-RCA-Service-Token": "test-token"}
+            )
             return created, fetched
 
     try:
         created, fetched = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     stored = repo.provider_configs.documents[0]
     assert created.status_code == 201
@@ -359,7 +377,7 @@ def test_create_provider_draft_encrypts_secret_and_get_masks_secret() -> None:
 
 
 def test_missing_master_key_rejects_secret_save() -> None:
-    _set_env(master_key=None)
+    _set_conf(master_key=None)
     repo = _repo()
 
     async def _request():
@@ -373,14 +391,14 @@ def test_missing_master_key_rejects_secret_save() -> None:
     try:
         response = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert response.status_code == 400
     assert "MASTER_KEY" in response.json()["detail"]["error"]
 
 
 def test_validate_url_rejects_unsafe_provider_url() -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
 
     async def _request():
@@ -394,33 +412,43 @@ def test_validate_url_rejects_unsafe_provider_url() -> None:
     try:
         response = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert response.status_code == 400
     assert "blocked" in response.json()["detail"]["error"]
 
 
 def test_connection_success_activation_and_audit_log(monkeypatch) -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
 
     async def success(*args: Any, **kwargs: Any) -> ProviderResult:
-        return ProviderResult(status="success", latency_ms=12, provider_identity="mock", models=["m1"])
+        return ProviderResult(
+            status="success", latency_ms=12, provider_identity="mock", models=["m1"]
+        )
 
     monkeypatch.setattr("backend.providers.base.BaseProviderAdapter.test_connection", success)
 
     async def _request():
         async with await _client(repo) as client:
-            created = await client.post("/api/v1/providers", json=_payload(), headers={"X-RCA-Service-Token": "test-token"})
+            created = await client.post(
+                "/api/v1/providers", json=_payload(), headers={"X-RCA-Service-Token": "test-token"}
+            )
             provider_id = created.json()["provider_id"]
-            tested = await client.post(f"/api/v1/providers/{provider_id}/test", headers={"X-RCA-Service-Token": "test-token"})
-            activated = await client.post(f"/api/v1/providers/{provider_id}/activate", headers={"X-RCA-Service-Token": "test-token"})
+            tested = await client.post(
+                f"/api/v1/providers/{provider_id}/test",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
+            activated = await client.post(
+                f"/api/v1/providers/{provider_id}/activate",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
             return tested, activated
 
     try:
         tested, activated = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert tested.status_code == 200
     assert tested.json()["provider"]["last_test_status"] == "success"
@@ -431,7 +459,7 @@ def test_connection_success_activation_and_audit_log(monkeypatch) -> None:
 
 
 def test_connection_failure_and_failed_activation_keeps_previous_active(monkeypatch) -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
     results = [
         ProviderResult(status="success", latency_ms=5, provider_identity="mock"),
@@ -445,21 +473,41 @@ def test_connection_failure_and_failed_activation_keeps_previous_active(monkeypa
 
     async def _request():
         async with await _client(repo) as client:
-            first = await client.post("/api/v1/providers", json=_payload(display_name="first"), headers={"X-RCA-Service-Token": "test-token"})
+            first = await client.post(
+                "/api/v1/providers",
+                json=_payload(display_name="first"),
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
             first_id = first.json()["provider_id"]
-            await client.post(f"/api/v1/providers/{first_id}/test", headers={"X-RCA-Service-Token": "test-token"})
-            await client.post(f"/api/v1/providers/{first_id}/activate", headers={"X-RCA-Service-Token": "test-token"})
-            second = await client.post("/api/v1/providers", json=_payload(display_name="second"), headers={"X-RCA-Service-Token": "test-token"})
+            await client.post(
+                f"/api/v1/providers/{first_id}/test", headers={"X-RCA-Service-Token": "test-token"}
+            )
+            await client.post(
+                f"/api/v1/providers/{first_id}/activate",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
+            second = await client.post(
+                "/api/v1/providers",
+                json=_payload(display_name="second"),
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
             second_id = second.json()["provider_id"]
-            tested = await client.post(f"/api/v1/providers/{second_id}/test", headers={"X-RCA-Service-Token": "test-token"})
-            activated = await client.post(f"/api/v1/providers/{second_id}/activate", headers={"X-RCA-Service-Token": "test-token"})
-            active = await client.get("/api/v1/providers/active", headers={"X-RCA-Service-Token": "test-token"})
+            tested = await client.post(
+                f"/api/v1/providers/{second_id}/test", headers={"X-RCA-Service-Token": "test-token"}
+            )
+            activated = await client.post(
+                f"/api/v1/providers/{second_id}/activate",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
+            active = await client.get(
+                "/api/v1/providers/active", headers={"X-RCA-Service-Token": "test-token"}
+            )
             return tested, activated, active
 
     try:
         tested, activated, active = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert tested.json()["provider"]["last_test_status"] == "failure"
     assert activated.status_code == 409
@@ -468,7 +516,7 @@ def test_connection_failure_and_failed_activation_keeps_previous_active(monkeypa
 
 
 def test_rollback_restores_previous_tested_config(monkeypatch) -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
 
     async def success(*args: Any, **kwargs: Any) -> ProviderResult:
@@ -478,20 +526,43 @@ def test_rollback_restores_previous_tested_config(monkeypatch) -> None:
 
     async def _request():
         async with await _client(repo) as client:
-            created = await client.post("/api/v1/providers", json=_payload(model_name="v1"), headers={"X-RCA-Service-Token": "test-token"})
+            created = await client.post(
+                "/api/v1/providers",
+                json=_payload(model_name="v1"),
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
             provider_id = created.json()["provider_id"]
-            await client.post(f"/api/v1/providers/{provider_id}/test", headers={"X-RCA-Service-Token": "test-token"})
-            await client.post(f"/api/v1/providers/{provider_id}/activate", headers={"X-RCA-Service-Token": "test-token"})
-            await client.put(f"/api/v1/providers/{provider_id}", json=_payload(model_name="v2"), headers={"X-RCA-Service-Token": "test-token"})
-            await client.post(f"/api/v1/providers/{provider_id}/test", headers={"X-RCA-Service-Token": "test-token"})
-            await client.post(f"/api/v1/providers/{provider_id}/activate", headers={"X-RCA-Service-Token": "test-token"})
-            rolled_back = await client.post(f"/api/v1/providers/{provider_id}/rollback/1", headers={"X-RCA-Service-Token": "test-token"})
+            await client.post(
+                f"/api/v1/providers/{provider_id}/test",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
+            await client.post(
+                f"/api/v1/providers/{provider_id}/activate",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
+            await client.put(
+                f"/api/v1/providers/{provider_id}",
+                json=_payload(model_name="v2"),
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
+            await client.post(
+                f"/api/v1/providers/{provider_id}/test",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
+            await client.post(
+                f"/api/v1/providers/{provider_id}/activate",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
+            rolled_back = await client.post(
+                f"/api/v1/providers/{provider_id}/rollback/1",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
             return rolled_back
 
     try:
         rolled_back = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert rolled_back.status_code == 200
     assert rolled_back.json()["provider"]["model_name"] == "v1"
@@ -509,34 +580,50 @@ def test_provider_capabilities_are_enforced() -> None:
 
 
 def test_active_llm_provider_selected_and_structured_response(monkeypatch) -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
     repo.incidents.documents.append(_incident())
-    repo.parsed_logs.documents.append({"_id": "event-1", "service": "nova-compute", "level": "ERROR", "message": "build failed"})
-    repo.event_edges.documents.append({"_id": "edge-1", "source_event_id": "event-1", "target_event_id": "event-1", "reason": "same request"})
+    repo.parsed_logs.documents.append(
+        {"_id": "event-1", "service": "nova-compute", "level": "ERROR", "message": "build failed"}
+    )
+    repo.event_edges.documents.append(
+        {
+            "_id": "edge-1",
+            "source_event_id": "event-1",
+            "target_event_id": "event-1",
+            "reason": "same request",
+        }
+    )
     repo.provider_configs.documents.append(_active_provider(provider_id="llm-active"))
     seen: dict[str, Any] = {}
 
-    async def generate(self: Any, config: dict[str, Any], evidence_package: dict[str, Any]) -> ProviderResult:
+    async def generate(
+        self: Any, config: dict[str, Any], evidence_package: dict[str, Any]
+    ) -> ProviderResult:
         seen["provider_id"] = config["provider_id"]
         seen["evidence"] = evidence_package["evidence"]
         return ProviderResult(
             status="success",
             latency_ms=10,
             provider_identity="ollama",
-            data={"answer_text": '{"summary":"grounded","likely_failure_area":"nova-compute","evidence":["build failed"],"hypotheses":[],"recommended_next_checks":[],"confidence":"medium","limitations":"unit"}'},
+            data={
+                "answer_text": '{"summary":"grounded","likely_failure_area":"nova-compute","evidence":["build failed"],"hypotheses":[],"recommended_next_checks":[],"confidence":"medium","limitations":"unit"}'
+            },
         )
 
     monkeypatch.setattr("backend.providers.adapters.ollama.OllamaAdapter.generate", generate)
 
     async def _request():
         async with await _client(repo) as client:
-            return await client.post("/api/v1/incidents/incident-1/explain", headers={"X-RCA-Service-Token": "test-token"})
+            return await client.post(
+                "/api/v1/incidents/incident-1/explain",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
 
     try:
         response = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert response.status_code == 200
     assert seen["provider_id"] == "llm-active"
@@ -546,51 +633,72 @@ def test_active_llm_provider_selected_and_structured_response(monkeypatch) -> No
 
 
 def test_provider_unreachable_returns_503(monkeypatch) -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
     repo.incidents.documents.append(_incident())
     repo.provider_configs.documents.append(_active_provider())
 
-    async def generate(self: Any, config: dict[str, Any], evidence_package: dict[str, Any]) -> ProviderResult:
+    async def generate(
+        self: Any, config: dict[str, Any], evidence_package: dict[str, Any]
+    ) -> ProviderResult:
         return ProviderResult(status="failure", latency_ms=1, error="provider request timed out")
 
     monkeypatch.setattr("backend.providers.adapters.ollama.OllamaAdapter.generate", generate)
 
     async def _request():
         async with await _client(repo) as client:
-            return await client.post("/api/v1/incidents/incident-1/explain", headers={"X-RCA-Service-Token": "test-token"})
+            return await client.post(
+                "/api/v1/incidents/incident-1/explain",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
 
     try:
         response = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert response.status_code == 503
     assert response.json()["detail"]["reason"] == "Active LLM provider is unreachable"
 
 
 def test_evidence_package_excludes_raw_full_log_dump(monkeypatch) -> None:
-    _set_env()
+    _set_conf()
     repo = _repo()
-    repo.incidents.documents.append(_incident(timeline=[{"message": "kept", "raw": "x" * 169000, "payload": "hidden"}]))
-    repo.parsed_logs.documents.append({"_id": "event-1", "service": "nova-compute", "message": "y" * 2000, "raw_log": "x" * 169000})
+    repo.incidents.documents.append(
+        _incident(timeline=[{"message": "kept", "raw": "x" * 169000, "payload": "hidden"}])
+    )
+    repo.parsed_logs.documents.append(
+        {
+            "_id": "event-1",
+            "service": "nova-compute",
+            "message": "y" * 2000,
+            "raw_log": "x" * 169000,
+        }
+    )
     repo.provider_configs.documents.append(_active_provider())
     seen: dict[str, Any] = {}
 
-    async def generate(self: Any, config: dict[str, Any], evidence_package: dict[str, Any]) -> ProviderResult:
+    async def generate(
+        self: Any, config: dict[str, Any], evidence_package: dict[str, Any]
+    ) -> ProviderResult:
         seen["package"] = evidence_package
-        return ProviderResult(status="success", latency_ms=1, data={"answer_text": "plain explanation"})
+        return ProviderResult(
+            status="success", latency_ms=1, data={"answer_text": "plain explanation"}
+        )
 
     monkeypatch.setattr("backend.providers.adapters.ollama.OllamaAdapter.generate", generate)
 
     async def _request():
         async with await _client(repo) as client:
-            return await client.post("/api/v1/incidents/incident-1/explain", headers={"X-RCA-Service-Token": "test-token"})
+            return await client.post(
+                "/api/v1/incidents/incident-1/explain",
+                headers={"X-RCA-Service-Token": "test-token"},
+            )
 
     try:
         response = _run(_request())
     finally:
-        _clear_env()
+        _clear_conf()
 
     assert response.status_code == 200
     package_text = str(seen["package"])
@@ -608,7 +716,11 @@ def test_ollama_adapter_calls_chat_endpoint_and_handles_success(monkeypatch) -> 
         status_code = 200
 
         def json(self) -> dict[str, Any]:
-            return {"model": "qwen2.5-coder:7b", "message": {"content": '{"summary":"ok"}'}, "done": True}
+            return {
+                "model": "qwen2.5-coder:7b",
+                "message": {"content": '{"summary":"ok"}'},
+                "done": True,
+            }
 
     class FakeClient:
         def __init__(self, **kwargs: Any) -> None:

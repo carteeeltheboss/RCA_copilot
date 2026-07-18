@@ -18,4 +18,9 @@ class OpenAICompatibleAdapter(BaseProviderAdapter):
         for item in data.get("data", []):
             if isinstance(item, dict) and item.get("id"):
                 models.append(str(item["id"]))
-        return ProviderResult(status="success", latency_ms=latency_ms, provider_identity="openai_compatible", models=models)
+        return ProviderResult(
+            status="success",
+            latency_ms=latency_ms,
+            provider_identity="openai_compatible",
+            models=models,
+        )

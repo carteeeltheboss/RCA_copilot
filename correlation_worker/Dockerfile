@@ -1,14 +1,12 @@
 FROM python:3.12.4-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PBR_VERSION=0.1.0
 
 WORKDIR /app
 
-COPY correlation_worker/requirements.txt ./correlation-worker-requirements.txt
-COPY correlation_worker/requirements-test.txt ./correlation-worker-requirements-test.txt
-RUN pip install --no-cache-dir -r correlation-worker-requirements.txt -r correlation-worker-requirements-test.txt
+COPY . .
+RUN pip install --no-cache-dir .
 
-COPY correlation_worker ./correlation_worker
-
-CMD ["python", "-m", "correlation_worker.worker"]
+CMD ["rca-copilot-correlation-worker", "--config-file", "/etc/rca-copilot/rca-copilot.conf"]

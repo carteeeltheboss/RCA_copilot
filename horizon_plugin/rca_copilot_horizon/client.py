@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any
+
+from django.conf import settings
 
 
 class RCAClientError(Exception):
@@ -17,9 +18,9 @@ class RCAClientError(Exception):
 
 @dataclass
 class RCAClient:
-    base_url: str = os.environ.get("RCA_BACKEND_URL", "http://127.0.0.1:8000")
-    token: str | None = os.environ.get("RCA_INTERNAL_SERVICE_TOKEN")
-    timeout: float = float(os.environ.get("RCA_BACKEND_TIMEOUT_SECONDS", "5"))
+    base_url: str = getattr(settings, "RCA_COPILOT_BACKEND_URL", "http://127.0.0.1:8000")
+    token: str | None = getattr(settings, "RCA_COPILOT_INTERNAL_SERVICE_TOKEN", None)
+    timeout: float = getattr(settings, "RCA_COPILOT_BACKEND_TIMEOUT_SECONDS", 5.0)
 
     def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.request("GET", path, params=params)

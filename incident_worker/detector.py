@@ -209,9 +209,7 @@ def build_subgraph_from_edges(
             if event.get("service") not in (None, "")
         ),
         resource_ids=_sorted_unique(
-            resource_id
-            for event in included
-            for resource_id in resource_values(event)
+            resource_id for event in included for resource_id in resource_values(event)
         ),
     )
 

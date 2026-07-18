@@ -43,23 +43,41 @@ class DetailView(views.HorizonTemplateView):
                 }
             )
         except RCAClientError as exc:
-            context.update({"incident": {}, "graph": {}, "timeline": {"items": []}, "graph_json": "{}", "backend_error": str(exc), "ai_result": None, "ai_error": None})
+            context.update(
+                {
+                    "incident": {},
+                    "graph": {},
+                    "timeline": {"items": []},
+                    "graph_json": "{}",
+                    "backend_error": str(exc),
+                    "ai_result": None,
+                    "ai_error": None,
+                }
+            )
         return context
 
 
 @require_POST
 def explain(request, incident_id):
     try:
-        result = _normalize_ai_result(RCAClient(timeout=95).post(f"/api/v1/incidents/{incident_id}/explain"))
+        result = _normalize_ai_result(
+            RCAClient(timeout=95).post(f"/api/v1/incidents/{incident_id}/explain")
+        )
         return JsonResponse(result)
     except RCAClientError as exc:
         return JsonResponse(
-            {"status": "unavailable", "error": f"AI explanation failed. Backend returned: {str(exc)}"},
+            {
+                "status": "unavailable",
+                "error": f"AI explanation failed. Backend returned: {str(exc)}",
+            },
             status=exc.status or 502,
         )
     except Exception:
         return JsonResponse(
-            {"status": "error", "error": "AI explanation failed. Backend returned: malformed response"},
+            {
+                "status": "error",
+                "error": "AI explanation failed. Backend returned: malformed response",
+            },
             status=502,
         )
 
@@ -80,5 +98,7 @@ def _compact_text(value):
         for key in ("summary", "hypothesis", "check", "message", "reason"):
             if value.get(key):
                 return str(value[key])
-        return "; ".join(f"{key}: {val}" for key, val in value.items() if val not in (None, "", []))[:500]
+        return "; ".join(
+            f"{key}: {val}" for key, val in value.items() if val not in (None, "", [])
+        )[:500]
     return str(value)[:500]
