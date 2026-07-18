@@ -69,6 +69,80 @@
   white-space: nowrap;
 }
 
+.rca-advanced-filters {
+  color: #637083;
+  margin-top: 8px;
+}
+
+.rca-advanced-filters summary {
+  cursor: pointer;
+  display: inline-block;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.rca-incidents-panel {
+  overflow: hidden;
+}
+
+.rca-incidents-table {
+  margin-bottom: 0;
+  table-layout: fixed;
+}
+
+.rca-incidents-table th {
+  border-bottom: 1px solid #d5dce5;
+  color: #637083;
+  font-size: 11px;
+  letter-spacing: .04em;
+  padding: 10px 12px;
+  text-transform: uppercase;
+}
+
+.rca-incidents-table td {
+  padding: 14px 12px;
+  vertical-align: middle;
+}
+
+.rca-incidents-table th:first-child { width: 38%; }
+.rca-incidents-table th:nth-child(2) { width: 9%; }
+.rca-incidents-table th:nth-child(3) { width: 18%; }
+.rca-incidents-table th:nth-child(4) { width: 13%; }
+.rca-incidents-table th:nth-child(5) { width: 11%; }
+.rca-incidents-table th:last-child { width: 11%; }
+
+.rca-incident-title {
+  color: #263238;
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rca-incident-meta {
+  color: #7a8694;
+  display: block;
+  font-size: 11px;
+  margin-top: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rca-services {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rca-count-divider {
+  color: #aab2bd;
+  padding: 0 3px;
+}
+
 .rca-graph {
   border: 1px solid #d5dce5;
   height: 420px;
