@@ -3,8 +3,16 @@ RCA_COPILOT_DIR=${RCA_COPILOT_DIR:-$DEST/rca-copilot}
 RCA_COPILOT_CONF_DIR=${RCA_COPILOT_CONF_DIR:-/etc/rca-copilot}
 RCA_COPILOT_CONF=${RCA_COPILOT_CONF:-$RCA_COPILOT_CONF_DIR/rca-copilot.conf}
 RCA_COPILOT_STATE_DIR=${RCA_COPILOT_STATE_DIR:-$DATA_DIR/rca-copilot}
+# Follow SERVICE_HOST if the operator hasn't set RCA_COPILOT_HOST explicitly.
+# This ensures the Keystone endpoint and health checks target the right address
+# on multi-node or non-loopback DevStack deployments.
+if [[ -n "${SERVICE_HOST:-}" && -z "${RCA_COPILOT_HOST:-}" ]]; then
+    RCA_COPILOT_HOST="$SERVICE_HOST"
+fi
 RCA_COPILOT_HOST=${RCA_COPILOT_HOST:-127.0.0.1}
-RCA_COPILOT_PORT=${RCA_COPILOT_PORT:-8000}
+# Port 18000 avoids conflicts with DevStack services that commonly use 8000
+# (e.g. Keystone under eventlet). Override with RCA_COPILOT_PORT if needed.
+RCA_COPILOT_PORT=${RCA_COPILOT_PORT:-18000}
 RCA_COPILOT_MONGO_USER=${RCA_COPILOT_MONGO_USER:-rca_admin}
 RCA_COPILOT_MONGO_PASSWORD=${RCA_COPILOT_MONGO_PASSWORD:-}
 RCA_COPILOT_MONGO_URI=${RCA_COPILOT_MONGO_URI:-}

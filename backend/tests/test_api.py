@@ -1,10 +1,12 @@
 import asyncio
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 from httpx import ASGITransport, AsyncClient, Response
 from pymongo.errors import BulkWriteError
 
 from backend import main
+from backend.database import state as db_state
 from backend.models import RawJournalRecord, raw_record_to_document
 from backend.repository import RawLogRepository
 
@@ -63,10 +65,17 @@ def run_request(method: str, url: str, json: dict | None = None) -> Response:
 
 
 def test_health() -> None:
-    response = run_request("GET", "/health")
-
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    mock_client = MagicMock()
+    mock_client.admin.command = AsyncMock(return_value={"ok": 1})
+    db_state.db_ready = True
+    db_state.client = mock_client
+    try:
+        response = run_request("GET", "/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+    finally:
+        db_state.db_ready = False
+        db_state.client = None
 
 
 def test_insert_batch_preserves_message_and_adds_received_at() -> None:

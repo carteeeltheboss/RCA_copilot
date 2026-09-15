@@ -36,12 +36,12 @@ services:
     volumes:
       - ./etc/rca-copilot.docker.conf:/etc/rca-copilot/rca-copilot.conf:ro
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:18000:18000"
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read()\"",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:18000/health', timeout=2).read()\"",
         ]
       interval: 10s
       timeout: 5s

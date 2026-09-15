@@ -1,0 +1,766 @@
+\documentclass[a4paper,11pt,oneside]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{listings}
+\usepackage[french]{babel}
+\usepackage{xcolor,graphicx}
+\usepackage{geometry}
+\geometry{a4paper, top=2.2cm, bottom=2.5cm, left=2.4cm, right=2.4cm, headsep=0.7cm}
+\usepackage{amsmath,amssymb}
+\usepackage{array}
+\usepackage{caption}
+\makeatletter
+\IfFileExists{lmodern.sty}{\usepackage{lmodern}}{}
+\makeatother
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{needspace}
+\usepackage[most]{tcolorbox}
+\usepackage{pgfgantt} % Ensure you have this package
+\usepackage{pgf-umlsd}
+
+\newenvironment{fquote}
+  {\begin{quote}\itshape}
+  {\end{quote}}
+
+\newcommand{\mychapter}[2]{%
+  \clearpage
+  \chapter*{#2}%
+  \markboth{#2}{#2}%
+  \addcontentsline{toc}{chapter}{#2}%
+  \vspace{-0.35em}
+}
+
+\usepackage{wrapfig}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,calc,arrows.meta,positioning,fit}
+\usepackage{adjustbox}
+\usepackage{xparse}
+\usepackage{hyperref}
+\graphicspath{{./}{DPR_tex/}}
+\hfuzz=3pt
+
+\definecolor{Primary}{HTML}{184E77}
+\definecolor{Secondary}{HTML}{1D7874}
+\definecolor{Accent}{HTML}{C97012}
+\definecolor{SoftBg}{HTML}{F7FAFC}
+\definecolor{Alert}{HTML}{B02A37}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=Primary,
+  citecolor=Primary,
+  urlcolor=Primary,
+  hypertexnames=false,
+  pdftitle={RCA\_copilot -- Analyse automatisée des causes racines pour OpenStack},
+  pdfauthor={Karim Hanfaoui}
+}
+\urlstyle{same}
+\raggedbottom
+\setstretch{1.08}
+
+% ---------------------------------------------------------------------
+% Numbering: this template numbers Chapitre / Section / Sous-section /
+% Sous-sous-section (3 levels below the chapter, as required), with
+% section-level numbers that restart at each chapter (1, 2, 3...) and
+% do not carry the chapter number, matching the reference guide's
+% "1. Introduction" / "3.1. Description de l'existant" style.
+% ---------------------------------------------------------------------
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{3}
+\renewcommand{\thesection}{\arabic{section}}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
+\renewcommand{\thesubsubsection}{\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+
+\setlength{\parskip}{0.35em}
+\setlength{\parindent}{1.1em}
+\setlength{\headheight}{15pt}
+\emergencystretch=1em
+
+\setlist[itemize]{topsep=0.35em,itemsep=0.2em,leftmargin=1.6em}
+\setlist[enumerate]{topsep=0.35em,itemsep=0.2em,leftmargin=1.8em}
+
+% Unnumbered chapters (front matter, conclusion générale, bibliographie...)
+\titleformat{name=\chapter,numberless}[display]
+  {\normalfont\huge\bfseries\color{Primary}}
+  {}
+  {0pt}
+  {}
+  [\vspace{0.45em}\color{Primary}\titlerule]
+% Numbered chapters (Chapitre 1 to Chapitre 4)
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries\color{Primary}}
+  {Chapitre~\thechapter}
+  {0.4em}
+  {}
+  [\vspace{0.45em}\color{Primary}\titlerule]
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{Primary}}
+  {\thesection.}
+  {0.6em}
+  {}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{Secondary}}
+  {\thesubsection.}
+  {0.6em}
+  {}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{Secondary}}
+  {\thesubsubsection.}
+  {0.6em}
+  {}
+\titlespacing*{\chapter}{0pt}{0pt}{1.0em}
+\titlespacing*{\section}{0pt}{1.1em}{0.5em}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.35em}
+\titlespacing*{\subsubsection}{0pt}{0.8em}{0.3em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\nouppercase{\leftmark}}
+\fancyhead[R]{\nouppercase{\rightmark}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\captionsetup{
+  font=small,
+  labelfont=bf,
+  labelsep=period,
+  skip=6pt
+}
+
+\newtcolorbox{block}[2][]{%
+  enhanced,
+  breakable,
+  colback=Primary!4!white,
+  colframe=Primary!50!black,
+  colbacktitle=Primary!10!white,
+  coltitle=black,
+  fonttitle=\bfseries,
+  sharp corners,
+  boxrule=0.6pt,
+  left=6pt,right=6pt,top=5pt,bottom=5pt,
+  before skip=7pt,after skip=7pt,
+  title={#2},
+  #1
+}
+\newtcolorbox{alertblock}[2][]{%
+  enhanced,
+  breakable,
+  colback=Alert!4!white,
+  colframe=Alert!60!black,
+  colbacktitle=Alert!10!white,
+  coltitle=black,
+  fonttitle=\bfseries,
+  sharp corners,
+  boxrule=0.6pt,
+  left=6pt,right=6pt,top=5pt,bottom=5pt,
+  before skip=7pt,after skip=7pt,
+  title={#2},
+  #1
+}
+
+\newcommand{\slidepurpose}[2]{%
+\begin{tcolorbox}[
+  enhanced,
+  boxrule=0.4pt,
+  sharp corners,
+  colback=SoftBg,
+  colframe=Primary!25,
+  left=5pt,right=5pt,top=3pt,bottom=3pt,
+  before skip=3pt,after skip=8pt
+]
+\footnotesize\textbf{Rôle :} #1 \hfill \textbf{Étape du projet :} #2
+\end{tcolorbox}
+}
+
+\newcommand{\defitem}[2]{\textbf{#1} : #2\par\vspace{0.32em}}
+
+\newcommand{\solutionfigure}[2]{%
+\begin{center}
+\includegraphics[width=0.96\linewidth,height=0.52\textheight,keepaspectratio]{#1}
+\captionsetup{type=figure}
+\captionof{figure}{#2}
+\end{center}
+}
+
+\newcommand{\tikzsolutionfigure}[2]{%
+\begin{center}
+\begin{adjustbox}{max width=0.96\linewidth, max totalheight=0.52\textheight}
+#1
+\end{adjustbox}
+\captionsetup{type=figure}
+\captionof{figure}{#2}
+\end{center}
+}
+
+\newif\ifreportfirstcolumn
+\NewDocumentEnvironment{columns}{ O{} }{%
+\par\medskip\noindent\reportfirstcolumntrue\ignorespaces
+}{%
+\par\medskip
+}
+
+\NewDocumentEnvironment{column}{ m }{%
+  \ifreportfirstcolumn\reportfirstcolumnfalse\else\hfill\fi
+  \begin{minipage}[t]{#1}\vspace{0pt}\raggedright
+}{%
+\end{minipage}\ignorespacesafterend
+}
+
+\RenewDocumentEnvironment{frame}{ O{} m }{%
+\Needspace{8\baselineskip}%
+\subsection{#2}
+\noindent
+}{%
+\par\vspace{0.45cm}
+}
+
+% Chapter-opening "Objectifs du chapitre" box, per the reference guide
+\newcommand{\chapterobjectives}[1]{%
+\begin{block}{Objectifs du chapitre}
+#1
+\end{block}
+}
+
+\begin{document}
+
+% =====================================================================
+% PAGE DE GARDE
+% =====================================================================
+\begin{titlepage}
+\centering
+{\small Royaume du Maroc}\\
+{\small HONORIS UNITED UNIVERSITIES}\\
+\rule{\linewidth}{0.3mm} \\[0.4cm]
+
+\begin{minipage}{5cm}
+\begin{center}
+\includegraphics[width=5cm]{logo}
+\end{center}
+\end{minipage}\hfill
+\begin{minipage}{10cm}
+\begin{flushright}
+{\small École Marocaine Des Sciences de L'Ingénieur}\\[0.1cm]
+{\small Département Intelligence Artificielle \& Data}\\[0.3cm]
+\includegraphics[width=3.5cm]{huaweii}
+\end{flushright}
+\end{minipage}\hfill\\
+\vspace{20mm}
+{\large \bfseries Rapport de stage d'été}\\[0.35cm]
+{\large Pour la validation du stage d'été en entreprise}\\[0.35cm]
+{\large \bfseries Filière : 4\textsuperscript{ème} année Intelligence Artificielle \& Data (4IAD)}\\[0.15cm]
+{\normalsize Période : du 15 juin 2026 au 15 août 2026}\\[0.15cm]
+{\normalsize Organisme d'accueil : Huawei -- Casablanca}
+\vspace{10mm}
+\rule{\linewidth}{0.3mm} \\[0.4cm]
+{ \huge \bfseries OpenStack RCA Copilot\\[0.2cm] \Large Analyse automatisée des causes racines pour l'infrastructure cloud OpenStack\\[0.4cm] }
+\rule{\linewidth}{0.3mm} \\[1cm]
+\vspace{10mm}
+
+\noindent
+\begin{minipage}{0.5\textwidth}
+\vspace{-7mm}
+\begin{flushleft} \large
+\emph{Réalisé par :}\\{}
+HANFAOUI Karim \\
+\end{flushleft}
+\end{minipage}
+\begin{minipage}{0.4\textwidth}
+\begin{flushright} \large
+\emph{Encadrant professionnel :} \\{}
+M. HINGER Anass \\[0.2cm]
+\emph{Encadrant académique :} \\{}
+Pr. FATHI Fadwa \\
+\end{flushright}
+\end{minipage}\\[1cm]
+
+{\large \textit{Soutenu le [à compléter], Devant le jury composé de : }}\\[0.5cm]
+
+\centering
+\begin{tabular}{lll}
+\large M. X Y : & \large EMSI & \large - Président(e) \\[0.1cm]
+\large M. X Y : & \large EMSI & \large - Examinateur(trice) \\[0.1cm]
+\large M. X Y : & \large EMSI & \large - Rapporteur
+\end{tabular}
+
+\vspace{20mm}
+{\large Promotion : [à compléter]}
+\end{titlepage}
+
+% =====================================================================
+% DÉDICACES
+% =====================================================================
+\pagenumbering{roman}
+\chapter*{Dédicaces}
+\addcontentsline{toc}{chapter}{Dédicaces}
+\thispagestyle{empty}
+
+\vspace{1cm}
+% TODO : dédicaces à compléter.
+
+% =====================================================================
+% REMERCIEMENTS
+% =====================================================================
+\clearpage
+\chapter*{Remerciements}
+\addcontentsline{toc}{chapter}{Remerciements}
+\thispagestyle{empty}
+
+\vspace{1cm}
+Au terme de ce stage d'été, je tiens à exprimer ma sincère reconnaissance à toutes les personnes qui ont contribué, de près ou de loin, à la réussite de cette expérience professionnelle.
+
+Je remercie tout particulièrement mon encadrant professionnel, M. HINGER Anass, pour sa disponibilité, ses conseils techniques avisés et la confiance qu'il m'a accordée tout au long de ce stage au sein de l'équipe Huawei Cloud. Son accompagnement m'a permis de monter en compétence rapidement sur un environnement OpenStack complexe et exigeant.
+
+Je souhaite également remercier ma professeure encadrante, Pr. FATHI Fadwa, pour son suivi régulier, sa disponibilité et ses recommandations qui ont grandement contribué à la structuration et à la qualité de ce travail.
+
+Mes remerciements s'adressent aussi à l'ensemble de l'équipe de Huawei Casablanca pour leur accueil chaleureux et leur esprit collaboratif, ainsi qu'au corps professoral et administratif de l'EMSI pour la qualité de la formation dispensée tout au long de mon cursus.
+
+Enfin, je remercie ma famille et mes proches pour leur soutien constant durant cette période.
+
+\vfill
+
+\begin{flushright}
+    \textit{HANFAOUI Karim}\\
+    \textit{Août 2026}
+\end{flushright}
+
+\clearpage
+\tableofcontents
+\clearpage
+\listoftables
+\clearpage
+\listoffigures
+\clearpage
+
+\pagenumbering{arabic}
+
+% =====================================================================
+% INTRODUCTION GÉNÉRALE
+% =====================================================================
+\mychapter{intro}{Introduction générale}
+
+Les plateformes cloud modernes reposent sur des architectures fortement distribuées, où une seule opération utilisateur traverse de nombreux services indépendants. OpenStack, plateforme open-source de référence pour le cloud privé et souverain, illustre parfaitement cette réalité : la création d'une simple instance virtuelle mobilise successivement Nova (calcul), Neutron (réseau), Keystone (identité), Placement (ordonnancement) et parfois Cinder (stockage), chacun produisant ses propres journaux, avec ses propres identifiants de requête et ses propres horodatages.
+
+Cette modularité, qui fait la force et la flexibilité d'OpenStack, devient un handicap majeur lorsqu'une défaillance survient. Un opérateur confronté à une erreur doit alors parcourir manuellement des journaux dispersés sur plusieurs services, sans lien explicite entre eux, pour reconstituer la chaîne d'événements ayant conduit à l'incident. Cette investigation manuelle est lente, sujette à erreur et ne passe pas à l'échelle face au volume de journaux générés en continu par une infrastructure de production.
+
+C'est dans ce contexte qu'est né le projet \textbf{RCA Copilot} (\emph{Root Cause Analysis Copilot}), réalisé dans le cadre d'un stage d'été au sein de l'équipe Huawei Cloud. La problématique centrale du stage peut être formulée ainsi : \emph{comment concevoir un système local-first qui ingère en continu les journaux bruts d'OpenStack, les reconstruit sous forme de graphe de corrélation, et produit un dossier de preuves borné et explicable -- exploitable par un modèle de langage local et open-weight -- sans jamais faire transiter les données d'infrastructure hors des machines de l'organisation ?}
+
+Cette problématique se décompose en quatre sous-problèmes techniques distincts : l'ingestion fiable et continue des journaux (via \texttt{journald}), leur structuration en événements exploitables, la corrélation de ces événements sous forme de graphe pour révéler les chaînes de causalité potentielles, et enfin le raisonnement automatisé par un modèle de langage local pour produire une explication fondée sur les preuves collectées.
+
+Le présent rapport rend compte du travail réalisé durant ce stage de deux mois. Il s'organise en quatre chapitres. Le premier chapitre présente le cadre général du projet : l'organisme d'accueil, l'étude de l'existant et la démarche de développement adoptée. Le deuxième chapitre détaille la spécification des besoins fonctionnels et non fonctionnels du système, organisée autour des quatre étapes du pipeline d'investigation. Le troisième chapitre expose la conception du système, son architecture logicielle et matérielle, ainsi que son modèle de données. Le quatrième chapitre décrit la réalisation effective du système, l'environnement technique utilisé et les principales interfaces développées. Le rapport se conclut par un bilan critique du travail accompli et des perspectives d'amélioration.
+
+% =====================================================================
+% CHAPITRE 1 : PRÉSENTATION DU CADRE DE PROJET
+% =====================================================================
+\chapter{Présentation du cadre de projet}
+\chapterobjectives{%
+Ce chapitre a pour objectif de situer le stage dans son contexte organisationnel et technique. Il présente l'organisme d'accueil, dresse un état des lieux des pratiques actuelles de diagnostic d'incidents sur OpenStack, en identifie les limites, et justifie la solution proposée ainsi que la démarche de développement retenue pour ce stage de deux mois.
+}
+
+\section{Introduction}
+Avant d'entrer dans le détail technique du projet, il est nécessaire de présenter le contexte dans lequel il s'inscrit : l'entreprise d'accueil, la pratique actuelle du diagnostic d'incidents sur une plateforme OpenStack, ainsi que l'organisation retenue pour mener à bien ce travail dans le temps imparti par le stage.
+
+\section{Présentation de l'organisme d'accueil}
+Le stage s'est déroulé au sein de l'équipe \textbf{Huawei Cloud}, à Casablanca. Huawei est un groupe technologique international présent dans les domaines des télécommunications, de l'informatique en nuage (cloud computing) et des équipements réseau. Sa division Cloud développe et opère des solutions de cloud privé et souverain, dont une partie s'appuie sur la plateforme open-source \textbf{OpenStack}, largement utilisée pour offrir aux clients un contrôle total sur leurs données et leur infrastructure.
+
+L'équipe d'accueil est en charge de l'intégration, de l'exploitation et de l'amélioration continue des composants OpenStack déployés dans les offres cloud de l'entreprise. Le stage s'est inscrit dans une démarche d'innovation interne visant à outiller les équipes d'exploitation avec des outils d'assistance au diagnostic, dans un contexte où la souveraineté et la confidentialité des données d'infrastructure sont une exigence centrale.
+
+Sur le plan des outils, l'environnement de travail repose sur les briques technologiques standard de l'écosystème OpenStack (DevStack, Keystone, Horizon, \texttt{oslo.config}, \texttt{oslo.log}, \texttt{pbr}), ainsi que sur des outils courants de développement collaboratif (Git/GitHub, environnements virtuels Python, conteneurisation Docker).
+
+\section{Étude de l'existant}
+
+\subsection{Description de l'existant}
+Dans une infrastructure OpenStack classique, chaque service (Nova, Neutron, Keystone, Placement, Cinder, etc.) tourne comme un processus indépendant et écrit ses propres journaux, historiquement dispersés sous des répertoires distincts tels que \texttt{/var/log/nova}, \texttt{/var/log/neutron}, etc. Lorsqu'un opérateur doit diagnostiquer une panne -- par exemple un échec de création d'instance --, la pratique actuelle consiste à :
+\begin{itemize}
+    \item identifier approximativement l'intervalle de temps de la panne ;
+    \item se connecter successivement à chaque service potentiellement impliqué ;
+    \item effectuer des recherches manuelles (\texttt{grep}, filtrage par identifiant de requête) dans chaque fichier de journal ;
+    \item recomposer mentalement la chaîne d'événements reliant les différents services.
+\end{itemize}
+Ce travail repose entièrement sur l'expérience et la mémoire de l'opérateur, qui doit connaître à l'avance quels services interroger et dans quel ordre.
+
+\subsection{Critique de l'existant}
+Cette pratique manuelle présente plusieurs insuffisances majeures :
+\begin{itemize}
+    \item \textbf{Absence de corrélation automatique} : rien ne relie explicitement un événement d'un service à un événement d'un autre service, même lorsqu'ils partagent le même identifiant de requête ou la même ressource.
+    \item \textbf{Changement de contexte permanent} : l'opérateur doit naviguer entre plusieurs fichiers et interfaces, ce qui ralentit fortement l'investigation et augmente le risque d'erreur.
+    \item \textbf{Non-scalabilité} : le volume de journaux généré en continu par une infrastructure de production rend la recherche manuelle de plus en plus coûteuse à mesure que le système grandit.
+    \item \textbf{Pas de garantie d'exhaustivité} : rien ne garantit que l'opérateur retrouve effectivement tous les événements pertinents à la panne, en particulier ceux situés dans des services qu'il n'aurait pas pensé à consulter.
+    \item \textbf{Aucune assistance intelligente disponible localement} : les solutions d'IA générative existantes imposent en général l'envoi des données d'infrastructure vers des services cloud tiers, ce qui est incompatible avec les exigences de souveraineté des données du contexte Huawei Cloud.
+\end{itemize}
+
+\subsection{Solution proposée}
+Face à ces limites, le projet \textbf{RCA Copilot} propose la conception d'un composant OpenStack natif dédié à l'analyse des causes racines (\emph{Root Cause Analysis}), reposant sur les principes suivants :
+\begin{itemize}
+    \item une \textbf{ingestion continue et fiable} des journaux via \texttt{journald}, avec reprise sur incident (curseur persistant) ;
+    \item une \textbf{structuration déterministe} des journaux bruts en événements exploitables (service, niveau, identifiant de requête, ressources concernées) ;
+    \item une \textbf{corrélation automatique} de ces événements sous forme de graphe, à partir de règles déterministes (identifiant de requête partagé, ressource partagée) ;
+    \item la \textbf{construction d'incidents bornés} autour d'un événement suspect, avec enrichissement déterministe (chronologie, services impactés, résumé) ;
+    \item un \textbf{raisonnement optionnel par IA locale}, effectué par un modèle de langage open-weight (DeepSeek-R1) exécuté entièrement sur les machines de l'organisation, sans aucun appel à un service cloud tiers.
+\end{itemize}
+Cette approche présente l'avantage de garder la maîtrise complète de la chaîne technique (données, modèle, infrastructure), au prix d'un effort de développement plus important qu'une simple intégration d'API cloud tierce. Ce compromis a été jugé justifié au regard des exigences de souveraineté des données du contexte d'accueil, et le choix a été validé par l'encadrant professionnel dès le cadrage du sujet.
+
+\section{Choix du modèle de développement}
+Le stage s'est déroulé sur une durée de six semaines effectives de développement (encadrée par deux semaines de cadrage et de restitution sur une période totale du 15 juin au 15 août 2026), ce qui a orienté le choix vers une démarche \textbf{agile de type Scrum}, découpée en trois sprints successifs :
+\begin{itemize}
+    \item \textbf{Sprint 1 -- Environnement \& Ingestion} : mise en place de l'environnement DevStack, étude de l'état de l'art, développement du pipeline d'ingestion et de structuration des journaux.
+    \item \textbf{Sprint 2 -- Corrélation \& Incidents} : conception du moteur de corrélation par graphe et de la détection d'incidents.
+    \item \textbf{Sprint 3 -- Enrichissement \& Durcissement} : enrichissement déterministe des incidents, intégration du raisonnement IA local, durcissement de la fiabilité et tests.
+\end{itemize}
+Cette démarche itérative a permis d'adapter le développement aux contraintes réelles découvertes au fur et à mesure (spécificités de DevStack, comportement de \texttt{journald}, limites matérielles du GPU d'inférence), chaque sprint consolidant la fiabilité de la couche précédente avant d'ajouter la suivante.
+
+\section{Planning prévisionnel}
+Le planning prévisionnel du stage a été construit sous forme de réseau PERT afin d'identifier le chemin critique et les marges disponibles sur chaque tâche. Le chemin critique identifié est : \textbf{Cadrage $\rightarrow$ Mise en place de l'environnement $\rightarrow$ Moteur de corrélation $\rightarrow$ Intégration des incidents $\rightarrow$ Enrichissement $\rightarrow$ Durcissement/tests $\rightarrow$ Validation $\rightarrow$ Rapport final}, pour une durée totale estimée de 42 jours, cohérente avec un stage de six semaines effectives de développement. Les tâches d'étude de l'état de l'art sur le raisonnement par IA locale et de mise en place du cadre \emph{provider} disposaient de la marge la plus importante, ce qui a permis de les traiter en parallèle sans risque pour le chemin critique. Le tableau ci-dessous synthétise le déroulement par grandes étapes ; le détail des tâches, des liaisons et des marges est illustré par le diagramme PERT et le diagramme de Gantt correspondants, développés durant la phase de cadrage du stage.
+
+\begin{table}[htbp]
+\centering
+\caption{Planning prévisionnel (calendrier du stage sur 6 semaines)}
+\begin{adjustbox}{width=\textwidth}
+\small
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\textbf{Étape} & \textbf{S1} & \textbf{S2} & \textbf{S3} & \textbf{S4} & \textbf{S5} & \textbf{S6} \\
+\hline
+Cadrage \& état de l'art & \checkmark & \checkmark & & & & \\
+\hline
+Environnement \& ingestion & \checkmark & \checkmark & & & & \\
+\hline
+Moteur de corrélation \& incidents & & \checkmark & \checkmark & \checkmark & & \\
+\hline
+Enrichissement \& intégration IA locale & & & & \checkmark & & \\
+\hline
+Durcissement, tests \& validation & & & & & \checkmark & \\
+\hline
+Rapport final, démo \& présentation & & & & & \checkmark & \checkmark \\
+\hline
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\section{Conclusion}
+Ce premier chapitre a permis de poser le cadre du stage : présentation de l'organisme d'accueil, constat des limites du diagnostic manuel d'incidents sur OpenStack, et justification de l'approche retenue -- un pipeline d'évidence déterministe couplé à un raisonnement IA local et souverain. La démarche agile en trois sprints, calée sur un planning de six semaines, a structuré l'ensemble du travail présenté dans les chapitres suivants. Le chapitre suivant détaille la spécification des besoins fonctionnels et non fonctionnels du système.
+
+% =====================================================================
+% CHAPITRE 2 : SPÉCIFICATION DES BESOINS
+% =====================================================================
+\chapter{Spécification des besoins}
+\chapterobjectives{%
+Ce chapitre a pour objectif de spécifier précisément les besoins auxquels doit répondre RCA Copilot. Compte tenu de la nature du système -- un pipeline de traitement de données déterministe adossé à un composant OpenStack, plutôt qu'une application interactive classique --, les besoins sont organisés autour des quatre étapes fonctionnelles du pipeline d'investigation plutôt que sous forme de cas d'utilisation UML classiques, tout en conservant une lecture par acteur pour les interactions humaines avec le système.
+}
+
+\section{Introduction}
+La spécification des besoins de RCA Copilot doit rendre compte à la fois de la chaîne de traitement automatisée des journaux (ingestion, structuration, corrélation, enrichissement, raisonnement IA) et des interactions qu'un opérateur humain a avec le système via le tableau de bord Horizon. Les sections suivantes détaillent successivement les besoins fonctionnels globaux, organisés par étape du pipeline technique, les besoins non fonctionnels, puis les interactions attendues entre le système et ses différents acteurs.
+
+\section{Spécification des besoins fonctionnels}
+Le système doit répondre à un besoin fonctionnel global unique -- \emph{transformer des journaux OpenStack bruts et dispersés en un dossier de preuves d'incident borné et explicable} -- que l'on décompose en quatre besoins fonctionnels majeurs, correspondant aux quatre étapes du pipeline.
+
+\subsection{Besoin fonctionnel 1 -- Ingestion continue des journaux}
+Le système doit pouvoir capter en continu les journaux produits par les services OpenStack, sans interruption de service et sans perte de données en cas de redémarrage.
+\subsubsection{Collecte en flux depuis journald}
+Le collecteur doit suivre en direct le journal \texttt{systemd} (\texttt{journald}) de chaque unité de service OpenStack surveillée, à la manière d'un \texttt{tail -f}, plutôt que de lire un fichier de journal déjà clos.
+\subsubsection{Livraison fiable et reprise sur incident}
+Chaque lot d'enregistrements envoyé au \emph{backend} doit être accusé de réception (ACK) avant que le curseur de lecture ne soit avancé et persisté, garantissant qu'aucun événement n'est perdu en cas de panne du collecteur, et que les doublons sont filtrés par un index unique (identifiant de démarrage + curseur de journal).
+
+\subsection{Besoin fonctionnel 2 -- Structuration des journaux en événements}
+Les enregistrements bruts, non structurés, doivent être transformés en événements structurés et interrogeables.
+\subsubsection{Extraction de champs structurés}
+Le \emph{worker} de \emph{parsing} doit extraire de chaque ligne de journal : le niveau de sévérité, le service émetteur, le module, l'identifiant de requête, les identifiants de ressource concernés, ainsi que le fichier et la ligne source, tout en conservant la trace vers l'enregistrement brut d'origine.
+\subsubsection{Traçabilité des échecs de parsing}
+Un enregistrement qui ne peut pas être structuré ne doit jamais être supprimé silencieusement : il doit être conservé avec un statut d'échec explicite, afin que l'absence de structure reste visible et auditable.
+
+\subsection{Besoin fonctionnel 3 -- Corrélation et détection d'incidents}
+Les événements structurés doivent être reliés entre eux pour révéler des chaînes de causalité potentielles, puis regroupés en incidents exploitables.
+\subsubsection{Construction du graphe de corrélation}
+Le système doit créer des arêtes de corrélation entre événements selon deux règles déterministes uniquement : partage du même identifiant de requête (confiance 1.0, fenêtre de 5 minutes), ou partage de la même ressource (confiance 0.9, fenêtre de 10 minutes), chaque arête étant chronologique, dirigée et documentée par sa raison et son score de confiance.
+\subsubsection{Détection et délimitation des incidents}
+Un incident doit être construit à partir d'un événement germe (ERROR/CRITICAL, trace d'exception, échec, dépassement de délai, ressource en état d'erreur), puis borné par une profondeur maximale, un nombre maximal d'événements et une fenêtre temporelle, afin de garantir un sous-graphe de preuve toujours restreint et lisible.
+
+\subsection{Besoin fonctionnel 4 -- Enrichissement et raisonnement explicatif}
+Chaque incident détecté doit être transformé en un dossier de preuves exploitable, avec, en option, une explication en langage naturel produite par un modèle de langage local.
+\subsubsection{Enrichissement déterministe}
+Le \emph{worker} d'enrichissement doit produire, à partir du seul sous-graphe borné et sans intervention d'IA, une chronologie ordonnée, la liste des services et ressources impactés, un décompte des erreurs et avertissements, ainsi qu'un résumé en langage simple.
+\subsubsection{Raisonnement par IA locale fondé sur les preuves}
+Lorsqu'un fournisseur d'IA est activé, le système doit soumettre au modèle local (\texttt{deepseek-r1:8b} via Ollama) exclusivement le dossier de preuves déterministe -- jamais les journaux bruts --, et exiger que chaque affirmation produite cite un identifiant d'événement réel ; en l'absence de preuve suffisante, le modèle doit l'indiquer explicitement plutôt que d'extrapoler.
+
+\section{Spécification des besoins non fonctionnels}
+Au-delà des fonctionnalités, le système doit satisfaire les exigences non fonctionnelles suivantes :
+\begin{itemize}
+    \item \textbf{Souveraineté et confidentialité des données} : aucune donnée d'infrastructure ne doit transiter par un service tiers hors du contrôle de l'organisation ; le raisonnement IA doit pouvoir s'exécuter entièrement en local.
+    \item \textbf{Fiabilité et absence de perte de données} : l'ingestion doit être résiliente aux redémarrages et aux pannes (curseur persistant, accusés de réception, index anti-doublon).
+    \item \textbf{Passage à l'échelle du graphe de corrélation} : la construction des arêtes doit éviter l'explosion combinatoire ($O(n^2)$) en ne reliant que les événements consécutifs au sein d'un groupe partageant un identifiant, plutôt que toutes les paires possibles.
+    \item \textbf{Explicabilité} : toute conclusion, qu'elle soit déterministe ou produite par le modèle de langage, doit rester traçable jusqu'aux événements sources qui la justifient.
+    \item \textbf{Intégration native à OpenStack} : le composant doit respecter les conventions OpenStack (empaquetage \texttt{pbr}, configuration \texttt{oslo.config}, journalisation \texttt{oslo.log}, unités \texttt{systemd}, enregistrement Keystone, greffon DevStack, greffon Horizon) plutôt que de fonctionner comme une application externe isolée.
+    \item \textbf{Sécurité opérationnelle} : authentification MongoDB, contrôle d'accès par rôle Keystone (RBAC) sur l'API, limitation de débit sur l'ingestion, secrets des fournisseurs IA chiffrés et validés contre les attaques de type SSRF.
+    \item \textbf{Maîtrise des ressources matérielles} : le modèle de raisonnement local doit être dimensionné pour tenir dans la mémoire vidéo disponible (8 Go de VRAM) tout en conservant une marge suffisante pour la fenêtre de contexte.
+\end{itemize}
+
+\section{Présentation des interactions avec le système}
+
+\subsection{Présentation des acteurs}
+Deux acteurs principaux interagissent avec RCA Copilot :
+\begin{itemize}
+    \item \textbf{L'opérateur OpenStack} : personnel d'exploitation qui consulte les incidents détectés, explore le graphe d'investigation et les preuves associées via le tableau de bord Horizon, et configure éventuellement le fournisseur d'IA local.
+    \item \textbf{L'administrateur système} : personne responsable du déploiement, de la configuration et de la maintenance du composant (installation via le greffon DevStack ou les unités \texttt{systemd} empaquetées, gestion de la rétention des données, sauvegardes).
+\end{itemize}
+Les services OpenStack eux-mêmes (Nova, Neutron, Keystone, Placement, etc.) ne sont pas des acteurs au sens UML mais des \emph{sources d'événements} passives : ils ne sollicitent jamais directement RCA Copilot, qui se contente d'observer leurs journaux via \texttt{journald}.
+
+\subsection{Description des interactions principales}
+Le tableau suivant décrit l'interaction principale de l'opérateur avec le système : la consultation d'un incident détecté automatiquement.
+
+\begin{table}[htbp]
+\centering
+\caption{Description de l'interaction « Consulter un incident détecté » pour l'acteur Opérateur OpenStack}
+\begin{tabular}{p{0.30\linewidth} p{0.58\linewidth}}
+\toprule
+\textbf{Interaction n°} & INT-01 \\
+\textbf{Acteur(s)} & Opérateur OpenStack \\
+\textbf{Objectif} & Comprendre la cause probable d'une panne détectée sans recherche manuelle dans les journaux \\
+\textbf{Pré-condition(s)} & Le pipeline d'ingestion, de corrélation et d'enrichissement est actif ; au moins un incident a été détecté \\
+\textbf{Post-condition(s)} & L'opérateur dispose d'une chronologie, des services impactés et, le cas échéant, d'une explication fondée sur des preuves citées \\
+\textbf{Scénario nominal} & L'opérateur ouvre le panneau \emph{Incidents} d'Horizon $\to$ sélectionne un incident $\to$ consulte le graphe d'investigation, la chronologie et le résumé déterministe $\to$ consulte, si disponible, l'explication du modèle de langage local avec les identifiants d'événements cités \\
+\textbf{Scénario alternatif} & Si aucun fournisseur d'IA n'est activé, seul le dossier de preuves déterministe (chronologie, services, décompte d'erreurs, résumé) est présenté à l'opérateur \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Vue d'ensemble des interactions}
+La figure~\ref{fig:pipeline-overview} synthétise l'ensemble du flux fonctionnel du système, du journal brut jusqu'à la décision de l'opérateur, et fait office de vue globale des interactions entre les composants du pipeline et l'acteur humain.
+% TODO : insérer ici la capture ou le schéma "Pipeline Overview: The Mental Model" (issu de la présentation openstack_rca_copilot_beamer / presentation_new) une fois exporté en image.
+% \solutionfigure{pipeline_overview}{Vue d'ensemble du pipeline fonctionnel : Log $\to$ Événement $\to$ Arête $\to$ Sous-graphe $\to$ Dossier de preuves $\to$ Décision opérateur}
+\label{fig:pipeline-overview}
+
+% =====================================================================
+% CHAPITRE 3 : CONCEPTION DU SYSTÈME
+% =====================================================================
+\chapter{Conception du système}
+\chapterobjectives{%
+Ce chapitre présente la conception technique de RCA Copilot : le flux de données à travers le pipeline (modélisation dynamique adaptée à un système de traitement en continu plutôt qu'à une application interactive), le modèle de données MongoDB retenu, et l'architecture logicielle et matérielle du composant, aussi bien dans sa version autonome (PoC) que dans sa version finale intégrée nativement à OpenStack.
+}
+
+\section{Introduction}
+RCA Copilot n'est pas une application interactive classique pilotée par des cas d'utilisation successifs, mais un \textbf{pipeline de traitement de données en continu}, composé de six processus indépendants communiquant exclusivement via des collections MongoDB partagées plutôt que par appels RPC directs. La conception qui suit adapte donc les livrables habituels de modélisation UML à cette réalité : les diagrammes de séquence/activité classiques sont remplacés par des diagrammes de flux de données représentant la progression d'un enregistrement de journal à travers le pipeline, et le modèle relationnel est remplacé par le schéma des collections documentaires MongoDB effectivement utilisées.
+
+\section{Modélisation dynamique du pipeline}
+
+\subsection{Flux global : du journal brut à la décision opérateur}
+Le comportement dynamique du système se lit comme une chaîne de transformations successives plutôt que comme un enchaînement de cas d'utilisation : \textbf{Log $\rightarrow$ Événement $\rightarrow$ Arête $\rightarrow$ Sous-graphe $\rightarrow$ Dossier de preuves $\rightarrow$ Décision opérateur}. Chaque flèche correspond à un processus distinct (collecteur, \emph{parser}, corrélation, incident, enrichissement) et à une persistance intermédiaire en base, ce qui garantit qu'aucune étape ne dépend d'un état en mémoire d'une autre étape.
+% TODO : insérer la figure "Pipeline Overview: The Mental Model" (diagramme TikZ de la présentation) une fois exportée en image.
+% \solutionfigure{pipeline_mental_model}{Modèle mental du pipeline : Log $\to$ Événement $\to$ Arête $\to$ Sous-graphe $\to$ Dossier de preuves $\to$ Décision}
+
+\subsection{Séquence d'ingestion : de \texttt{journald} à \texttt{raw\_logs}}
+La séquence d'ingestion suit les étapes suivantes : les unités \texttt{systemd} des services OpenStack écrivent en continu dans \texttt{journald} $\to$ le collecteur RCA Copilot suit ce flux en direct (\texttt{journalctl -f}) $\to$ les enregistrements sont regroupés par lots d'environ 50 éléments ou toutes les 2 secondes $\to$ chaque lot est envoyé par requête POST au \emph{backend} FastAPI $\to$ le \emph{backend} insère les enregistrements dans la collection \texttt{raw\_logs} $\to$ un accusé de réception (ACK) est renvoyé au collecteur $\to$ le curseur de lecture n'est avancé et persisté qu'après réception de cet ACK. Cette séquence garantit qu'une panne du collecteur avant l'ACK entraîne uniquement une répétition (filtrée par un index unique boot\_id + curseur), jamais une perte d'événement.
+
+\subsection{Séquence de corrélation et de détection d'incident}
+Une fois les journaux structurés dans \texttt{parsed\_logs}, le \emph{worker} de corrélation construit les arêtes du graphe (\texttt{event\_edges}) en triant les événements d'un même groupe (même identifiant de requête ou même ressource) par ordre chronologique et en ne reliant que les événements consécutifs -- ce qui évite l'explosion combinatoire d'un graphe complet en $O(n^2)$. Le \emph{worker} d'incident surveille ensuite le graphe pour détecter un événement germe (erreur, exception, échec), puis effectue une traversée bornée en profondeur, en nombre d'événements et en fenêtre temporelle pour délimiter le sous-graphe de l'incident. Le \emph{worker} d'enrichissement transforme enfin ce sous-graphe en dossier de preuves déterministe (chronologie, services impactés, décompte d'erreurs, résumé), qui devient la seule entrée transmise, le cas échéant, au modèle de langage local pour produire une explication citant les identifiants d'événements réels.
+
+\section{Modélisation statique et modèle de données}
+
+\subsection{Choix d'un modèle documentaire}
+RCA Copilot repose sur MongoDB plutôt que sur une base de données relationnelle. Ce choix est justifié par la nature hétérogène et évolutive des journaux OpenStack (structure de champs variable selon le service source), par le besoin d'écritures à haut débit en continu (ingestion), et par la nature naturellement documentaire d'un événement de journal enrichi de métadonnées. Il n'y a donc pas de \emph{modèle relationnel} au sens classique (pas de jointures SQL, pas de clés étrangères contraintes) ; le paragraphe suivant présente à la place le schéma des collections et leurs relations logiques (par référence d'identifiant).
+
+\subsection{Schéma des collections}
+Le pipeline s'articule autour de cinq collections MongoDB principales, écrites et lues de façon strictement séquentielle par les différents \emph{workers} :
+\begin{itemize}
+    \item \texttt{raw\_logs} : enregistrements bruts tels que reçus de \texttt{journald}, jamais modifiés après écriture ;
+    \item \texttt{parsed\_logs} : événements structurés (niveau, service, module, \texttt{request\_id}, \texttt{resource\_ids}, hôte, fichier, ligne), avec un champ de traçabilité \texttt{source\_raw\_log\_id} vers \texttt{raw\_logs} ;
+    \item \texttt{event\_edges} : arêtes de corrélation entre deux événements de \texttt{parsed\_logs}, portant une raison (\texttt{same\_request\_id} ou \texttt{shared\_resource\_id}) et un score de confiance ;
+    \item \texttt{incidents} : sous-graphes bornés construits à partir d'un événement germe, avec leurs bornes de traversée ;
+    \item \texttt{incidents} enrichis : chronologie, services/ressources impactés, décomptes et résumé, produits par le \emph{worker} d'enrichissement à partir du sous-graphe correspondant.
+\end{itemize}
+
+\subsection{Dictionnaire de données}
+Le tableau suivant détaille les principaux champs de la collection centrale \texttt{parsed\_logs}, pivot du pipeline entre l'ingestion brute et la couche de corrélation.
+
+\begin{table}[htbp]
+\centering
+\caption{Dictionnaire de données -- collection \texttt{parsed\_logs}}
+\begin{adjustbox}{width=\textwidth}
+\small
+\begin{tabular}{p{0.15\linewidth} p{0.09\linewidth} p{0.05\linewidth} p{0.07\linewidth} p{0.07\linewidth} p{0.26\linewidth} p{0.06\linewidth} p{0.07\linewidth} p{0.10\linewidth}}
+\toprule
+\multirow{2}{1.5cm}{\raggedright\textbf{Nom du champ}} & \multirow{2}{0.9cm}{\raggedright\textbf{Type}} & \multirow{2}{0.5cm}{\raggedright\textbf{Taille}} & \multirow{2}{0.7cm}{\raggedright\textbf{Obligat.}} & \multirow{2}{0.7cm}{\raggedright\textbf{Défaut}} & \multirow{2}{2.6cm}{\raggedright\textbf{Valeurs autorisées}} & \multicolumn{2}{c}{\textbf{Clé}} & \multirow{2}{1.0cm}{\raggedright\textbf{Collection}} \\
+\cmidrule(lr){7-8}
+ & & & & & & \textbf{Pr.} & \textbf{Étr.} & \\
+\midrule
+\_id & ObjectId & 12 o & Oui & généré & -- & X & & parsed\_logs \\
+level & string & -- & Oui & -- & DEBUG, INFO, WARN, ERROR, CRITICAL & & & parsed\_logs \\
+service & string & -- & Oui & -- & nova, neutron, keystone, placement, cinder, ... & & & parsed\_logs \\
+module & string & -- & Non & -- & -- & & & parsed\_logs \\
+request\_id & string & -- & Non & -- & -- & & & parsed\_logs \\
+resource\_ids & array & -- & Non & [\,] & -- & & & parsed\_logs \\
+host & string & -- & Non & -- & -- & & & parsed\_logs \\
+message & string & -- & Oui & -- & -- & & & parsed\_logs \\
+parse\_status & string & -- & Oui & success & success, failure & & & parsed\_logs \\
+source\_raw\_log\_id & ObjectId & 12 o & Oui & -- & -- & & X & raw\_logs \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\subsection{Architecture de l'application}
+
+\subsubsection{Architecture logicielle}
+RCA Copilot est structuré en six processus Python indépendants, empaquetés dans une seule distribution \texttt{pbr} et exposés chacun par un script console dédié : \texttt{rca-copilot-api} (API FastAPI), \texttt{rca-copilot-collector} (collecteur \texttt{journald}), \texttt{rca-copilot-parser-worker}, \texttt{rca-copilot-correlation-worker}, \texttt{rca-copilot-incident-worker} et \texttt{rca-copilot-enrichment-worker}. Tous les processus partagent le même fichier de configuration (\texttt{/etc/rca-copilot/rca-copilot.conf}, géré par \texttt{oslo.config}) et communiquent exclusivement à travers les collections MongoDB décrites précédemment -- une architecture en \emph{pipeline découplé} plutôt qu'en services couplés par appels RPC directs, qui facilite la résilience (un \emph{worker} en panne n'interrompt pas les autres) et l'évolutivité (chaque étape peut être mise à l'échelle indépendamment).
+% TODO : insérer la figure "Final Full Architecture" (issue de openstack_rca_copilot_beamer.tex, frame 16) une fois exportée en image.
+% \solutionfigure{final_architecture}{Architecture logicielle complète : six processus gérés par OpenStack, du journal brut au dossier de preuves}
+
+\subsubsection{Architecture matérielle}
+L'architecture matérielle du PoC repose sur deux machines reliées de façon privée par Tailscale, sans aucune exposition publique : une machine hébergeant le \emph{plan de preuve} (DevStack, \texttt{journald}, collecteur, API FastAPI, MongoDB), et une seconde machine dédiée à l'inférence, équipée d'un GPU RTX 4070 Max-Q (8 Go de VRAM), exécutant Ollama et le modèle \texttt{deepseek-r1:8b}. Dans la version finale intégrée à OpenStack, cette même architecture est reproduite sous forme de composant déployé nativement au sein de la plateforme : DevStack (ou les unités \texttt{systemd} empaquetées) supervise les six processus RCA Copilot au même titre que les autres services OpenStack, Keystone enregistre le service \texttt{rca} avec ses points de terminaison publics, internes et administratifs, et Horizon expose le tableau de bord d'investigation ; le nœud d'inférence GPU reste un nœud fournisseur optionnel, accessible via le cadre \emph{provider} du \emph{backend}.
+% TODO : insérer la figure "OpenStack-Native Deployment" (openstack_rca_copilot_beamer.tex, frame 15) une fois exportée en image.
+% \solutionfigure{deployment_architecture}{Déploiement natif OpenStack : hôte RCA Copilot et nœud fournisseur d'inférence}
+
+\section{Conclusion}
+La conception retenue privilégie un pipeline déterministe et découplé, où chaque étape persiste son résultat avant de le transmettre à la suivante, garantissant traçabilité et résilience. Le modèle de données documentaire MongoDB s'adapte naturellement à l'hétérogénéité des journaux OpenStack, tandis que l'architecture logicielle en six processus indépendants, empaquetée selon les conventions \texttt{pbr}/\texttt{oslo}, permet une intégration native au sein de la plateforme OpenStack plutôt qu'un simple déploiement applicatif externe. Le chapitre suivant détaille la réalisation effective de cette conception.
+
+% =====================================================================
+% CHAPITRE 4 : RÉALISATION DU SYSTÈME
+% =====================================================================
+\chapter{Réalisation du système}
+\chapterobjectives{%
+Ce chapitre décrit la réalisation effective de RCA Copilot : l'environnement matériel et logiciel utilisé pour le développement, ainsi que les principales interfaces livrées, en particulier le tableau de bord Horizon qui constitue le point d'entrée de l'opérateur dans le système.
+}
+
+\section{Introduction}
+Après avoir présenté la conception du système au chapitre précédent, ce chapitre revient sur sa mise en œuvre concrète : la pile technologique effectivement employée, l'environnement matériel utilisé pour le développement et les tests, et les interfaces graphiques livrées à l'issue du stage.
+
+\section{Environnement de développement}
+
+\subsection{Environnement matériel}
+Le développement et les tests se sont appuyés sur deux machines physiques distinctes, reliées de façon privée par un réseau VPN Tailscale :
+\begin{itemize}
+    \item une machine principale hébergeant l'environnement DevStack complet (services OpenStack, \texttt{journald}, collecteur, API FastAPI, base MongoDB) ;
+    \item une station de travail MSI Raider, équipée d'un GPU NVIDIA RTX 4070 Max-Q (8 Go de VRAM), dédiée à l'inférence du modèle de langage local via Ollama.
+\end{itemize}
+Cette séparation physique reproduit, à petite échelle, la séparation entre un \emph{plan de preuve} (données et pipeline déterministe) et un \emph{nœud fournisseur} d'inférence, conforme à l'architecture présentée au chapitre précédent.
+
+\subsection{Environnement logiciel}
+La pile logicielle repose sur les briques suivantes :
+\begin{itemize}
+    \item \textbf{Langage et empaquetage} : Python 3.11, empaquetage \texttt{pbr} conforme aux conventions OpenStack (métadonnées dans \texttt{setup.cfg}, points d'entrée de scripts console, génération de \emph{wheel}/\emph{sdist}) ;
+    \item \textbf{API et services} : FastAPI pour le \emph{backend}, \texttt{oslo.config} pour la configuration centralisée, \texttt{oslo.log} pour la journalisation des composants ;
+    \item \textbf{Persistance} : MongoDB 7, avec index de requête et index TTL pour la rétention automatique des données (30 jours par défaut sur \texttt{raw\_logs}, \texttt{parsed\_logs} et \texttt{event\_edges}) ;
+    \item \textbf{Orchestration} : DevStack (greffon dédié \texttt{enable\_plugin rca-copilot}) pour l'environnement OpenStack de développement, unités \texttt{systemd} pour la supervision des six processus, Docker pour l'alternative autonome de développement (\emph{Docker Compose}) ;
+    \item \textbf{Identité et interface} : Keystone pour l'enregistrement du service \texttt{rca} et le contrôle d'accès par rôle, Horizon pour le tableau de bord opérateur ;
+    \item \textbf{Raisonnement IA local} : Ollama comme moteur d'inférence, modèle \texttt{deepseek-r1:8b} (open-weight, licence MIT), avec un cadre \emph{provider} additionnel prenant également en charge des fournisseurs compatibles OpenAI, Gemini, Anthropic et HTTP personnalisé ;
+    \item \textbf{Qualité et intégration continue} : \texttt{tox} (environnements \texttt{py311}, \texttt{pep8}, \texttt{genconfig}, \texttt{releasenotes}), \texttt{pytest} pour les tests unitaires, \texttt{reno} pour la gestion des notes de version.
+\end{itemize}
+Le dépôt de code est organisé en modules clairement séparés selon leur responsabilité : \texttt{backend/} (API et cadre \emph{provider}), \texttt{collector/} (collecteur \texttt{journald}), \texttt{parser\_worker/}, \texttt{correlation\_worker/}, \texttt{incident\_worker/}, \texttt{enrichment\_worker/}, \texttt{devstack/} (greffon DevStack), \texttt{horizon\_plugin/} (greffon Horizon) et \texttt{systemd/} (unités empaquetées).
+
+\section{Principales interfaces graphiques}
+L'interface graphique de RCA Copilot est intégrée nativement au tableau de bord Horizon d'OpenStack, sous la forme d'un greffon dédié accessible depuis la navigation standard. Le tableau de bord expose cinq panneaux principaux.
+
+\textbf{Panneau Overview.} Ce panneau constitue la page d'accueil du composant (servie à l'adresse \texttt{/rca\_copilot/}) et offre une vue d'ensemble synthétique de l'état du pipeline et des incidents récents.
+% TODO : insérer une capture d'écran du panneau Overview une fois disponible.
+% \solutionfigure{horizon_overview}{Panneau « Overview » du tableau de bord RCA Copilot}
+
+\textbf{Panneau Incidents.} Accessible à l'adresse \texttt{/rca\_copilot/incidents/}, ce panneau liste l'ensemble des incidents détectés par le pipeline, permettant à l'opérateur de sélectionner un incident pour investigation approfondie.
+% TODO : insérer une capture d'écran du panneau Incidents une fois disponible.
+% \solutionfigure{horizon_incidents}{Panneau « Incidents » -- liste des incidents détectés}
+
+\textbf{Panneau Investigation.} Ce panneau constitue le cœur fonctionnel du système pour l'opérateur : il affiche le graphe d'investigation interactif (nœuds représentant les événements, arêtes représentant les corrélations), une chronologie sélectionnable, et un panneau de détail affichant, pour chaque événement sélectionné, la source brute, les champs analysés et les raisons de corrélation avec les événements voisins. La navigation est conçue pour ne jamais masquer la chaîne de preuves : un clic sur un nœud ou sur la chronologie fait toujours apparaître le contexte complet plutôt que de le remplacer.
+% TODO : insérer une capture d'écran du panneau Investigation une fois disponible.
+% \solutionfigure{horizon_investigation}{Panneau « Investigation » -- graphe interactif, chronologie et détail d'événement}
+
+\textbf{Panneau System Health.} Ce panneau expose l'état de santé de chacun des six processus du pipeline (via leurs fichiers de \emph{health check} respectifs), permettant à l'opérateur ou à l'administrateur de vérifier rapidement qu'aucun \emph{worker} n'est en défaut.
+% TODO : insérer une capture d'écran du panneau System Health une fois disponible.
+% \solutionfigure{horizon_health}{Panneau « System Health » -- état des six processus du pipeline}
+
+\textbf{Panneau Settings.} Ce panneau permet la configuration des fournisseurs d'IA optionnels (activation, test de connexion, bascule) selon un cycle de vie brouillon / test / activation / retour arrière, indépendant du fonctionnement du pipeline d'évidence déterministe.
+% TODO : insérer une capture d'écran du panneau Settings une fois disponible.
+% \solutionfigure{horizon_settings}{Panneau « Settings » -- configuration des fournisseurs d'IA}
+
+\section{Conclusion}
+La réalisation de RCA Copilot s'est concrétisée par un composant OpenStack complet et fonctionnel : six processus empaquetés selon les conventions \texttt{pbr}/\texttt{oslo}, un greffon DevStack assurant une installation en une seule ligne de configuration, un greffon Horizon exposant cinq panneaux opérationnels, et une suite de tests (81 tests \texttt{tox -e py311}, conformité \texttt{pep8}) garantissant la qualité du code livré. Le chapitre suivant dresse le bilan général du stage et propose des pistes d'amélioration pour la suite du projet.
+
+% =====================================================================
+% CONCLUSION GÉNÉRALE
+% =====================================================================
+\mychapter{conclusion}{Conclusion générale}
+
+Ce stage d'été, réalisé au sein de l'équipe Huawei Cloud à Casablanca, avait pour objectif de concevoir et de développer un composant d'analyse automatisée des causes racines pour les infrastructures OpenStack, capable de transformer des journaux bruts, dispersés sur de nombreux services indépendants, en un dossier de preuves d'incident borné, explicable et exploitable, sans jamais faire transiter les données d'infrastructure hors des machines de l'organisation. Cette contrainte de souveraineté des données, centrale dans le contexte d'un fournisseur de cloud privé, a orienté l'ensemble des choix techniques du projet, du raisonnement par un modèle de langage strictement local jusqu'au dimensionnement matériel de l'inférence. Le travail réalisé durant les six semaines de développement a permis d'aboutir à une preuve de concept fonctionnelle et complète : un pipeline en six processus indépendants assurant l'ingestion continue et fiable des journaux via journald, leur structuration en événements interrogeables, leur corrélation sous forme de graphe borné par des règles déterministes, la détection et l'enrichissement automatique des incidents, ainsi qu'un raisonnement explicatif fondé sur les preuves, produit par le modèle open-weight DeepSeek-R1 exécuté localement via Ollama. Au-delà de cette preuve de concept, le projet a été poussé jusqu'à son intégration native à la plateforme OpenStack, avec un empaquetage conforme aux conventions pbr et oslo, un greffon DevStack assurant une installation en une seule ligne de configuration, un enregistrement du service auprès de Keystone, et un tableau de bord Horizon dédié exposant cinq panneaux opérationnels aux utilisateurs finaux. Cette trajectoire, qui va au-delà des objectifs initiaux du stage, illustre la volonté de livrer non pas un simple prototype isolé mais un composant réellement déployable au sein d'une infrastructure de production. Sur le plan personnel, ce stage a été l'occasion d'approfondir des compétences techniques variées, allant de l'ingénierie de pipelines de données distribués à l'intégration de modèles de langage locaux, en passant par l'apprentissage approfondi des conventions internes de l'écosystème OpenStack. Le regard critique porté sur ce travail invite néanmoins à nuancer certains résultats : le système reste, à ce stade, une preuve de concept validée principalement sur un environnement DevStack de développement, et non encore éprouvée à l'échelle d'une infrastructure de production réelle ; les règles de corrélation, bien que déterministes et documentées, demeurent relativement simples (identifiant de requête et ressource partagés) et pourraient être enrichies par des signaux supplémentaires ; enfin, l'évaluation formelle de la qualité des explications produites par le modèle de langage local, ainsi que l'intégration d'une couche de recherche par similarité (embeddings et RAG) pour élargir la fenêtre de preuves disponible, restent des chantiers ouverts, explicitement identifiés comme axes d'amélioration future à l'issue du stage.
+
+% =====================================================================
+% BIBLIOGRAPHIE ET NÉTOGRAPHIE
+% =====================================================================
+\chapter*{Bibliographie et Nétographie}
+\addcontentsline{toc}{chapter}{Bibliographie et Nétographie}
+
+\section*{Bibliographie}
+\addcontentsline{toc}{section}{Bibliographie}
+\begin{thebibliography}{99}
+\bibitem{deepseek-r1} DEEPSEEK-AI. « DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning », rapport technique, 2025.
+\end{thebibliography}
+
+\section*{Nétographie}
+\addcontentsline{toc}{section}{Nétographie}
+\begin{itemize}
+\item \url{https://governance.openstack.org/tc/reference/licensing.html} -- OpenStack Technical Committee, exigences de licence (Apache License 2.0) et compatibilité des dépendances.
+\item \url{https://governance.openstack.org/reference/new-projects-requirements.html} -- OpenStack Technical Committee, exigences applicables aux nouveaux projets (alignement de mission, principes « Four Opens », intégration Keystone).
+\item \url{https://governance.openstack.org/tc/reference/pti/python.html} -- Project Testing Interface (Python) : conventions \texttt{tox}, \texttt{pep8}, couverture de tests, documentation, \emph{sdist} et \emph{wheel}.
+\item \url{https://docs.openstack.org/project-team-guide/open-source.html} -- OpenStack Project Team Guide, recommandations de licence et de gestion des dépendances open source.
+\item \url{https://docs.openstack.org/reno/2.2.0/} -- Documentation de \texttt{reno}, gestionnaire de notes de version versionnées avec le code.
+\item \url{https://docs.openstack.org/pbr/latest/} -- Documentation d'OpenStack \texttt{pbr} (Python Build Reasonableness) : empaquetage \texttt{setuptools}, génération de métadonnées.
+\item \url{https://docs.openstack.org/pbr/latest/user/using.html} -- Documentation \texttt{pbr}, configuration des points d'entrée de scripts console.
+\item \url{https://docs.openstack.org/devstack/2023.1/plugins.html} -- Documentation DevStack, mécanisme des greffons (\texttt{enable\_plugin}) et phases d'exécution.
+\item \url{https://docs.openstack.org/oslo.config/ussuri/configuration/format.html} -- Documentation \texttt{oslo.config}, format de fichier de configuration au style INI.
+\item \url{https://docs.openstack.org/oslo.log/latest/configuration/index.html} -- Documentation \texttt{oslo.log}, options de configuration de la journalisation.
+\item \url{https://docs.openstack.org/keystone/latest/contributor/service-catalog.html} -- Documentation Keystone, catalogue de services et points de terminaison publics/internes/administratifs.
+\item \url{https://docs.openstack.org/horizon/latest/contributor/tutorials/plugin.html} -- Tutoriel de création d'un greffon de tableau de bord Horizon.
+\end{itemize}
+
+% =====================================================================
+% ANNEXES (facultatif)
+% =====================================================================
+\mychapter{annexes}{Annexes}
+
+Cette annexe rassemble des compléments techniques référencés dans le corps du rapport.
+
+\section*{A. Extrait de configuration DevStack}
+\addcontentsline{toc}{section}{A. Extrait de configuration DevStack}
+Installation minimale du composant via le greffon DevStack, à ajouter dans \texttt{/opt/stack/devstack/local.conf} :
+\begin{verbatim}
+[[local|localrc]]
+enable_plugin rca-copilot https://github.com/carteeeltheboss/RCA_copilot.git openstack-integration
+
+RCA_COPILOT_HOST=127.0.0.1
+RCA_COPILOT_PORT=8000
+\end{verbatim}
+
+\section*{B. Liste des six services du composant}
+\addcontentsline{toc}{section}{B. Liste des six services du composant}
+\begin{table}[htbp]
+\centering
+\caption{Correspondance entre processus, scripts console, services DevStack et unités systemd}
+\begin{adjustbox}{width=\textwidth}
+\small
+\begin{tabular}{llll}
+\toprule
+\textbf{Processus} & \textbf{Script console} & \textbf{Service DevStack} & \textbf{Unité systemd} \\
+\midrule
+API backend & \texttt{rca-copilot-api} & \texttt{rca-api} & \texttt{rca-copilot-api.service} \\
+Collecteur journald & \texttt{rca-copilot-collector} & \texttt{rca-collector} & \texttt{rca-copilot-collector.service} \\
+Worker de parsing & \texttt{rca-copilot-parser-worker} & \texttt{rca-parser} & \texttt{rca-copilot-parser-worker.service} \\
+Worker de corrélation & \texttt{rca-copilot-correlation-worker} & \texttt{rca-correlation} & \texttt{rca-copilot-correlation-worker.service} \\
+Worker d'incident & \texttt{rca-copilot-incident-worker} & \texttt{rca-incident} & \texttt{rca-copilot-incident-worker.service} \\
+Worker d'enrichissement & \texttt{rca-copilot-enrichment-worker} & \texttt{rca-enrichment} & \texttt{rca-copilot-enrichment-worker.service} \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\section*{C. Vérification d'un incident corrélé}
+\addcontentsline{toc}{section}{C. Vérification d'un incident corrélé}
+Le script de validation \texttt{validation/scripts/inject\_correlated\_incident.py} soumet une séquence Nova $\to$ Neutron $\to$ Placement partageant un même identifiant de requête et de ressource, et échoue si le graphe d'incident résultant ne comporte pas au moins trois nœuds connectés :
+\begin{verbatim}
+python validation/scripts/inject_correlated_incident.py \
+  --backend http://127.0.0.1:8000
+\end{verbatim}
+
+\end{document}

@@ -10,6 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from parser_worker.config import ParserConfig
 from parser_worker.repository import ParserRepository
+from rca_copilot.mongo_utils import connect_with_retry
 from rca_copilot.service import prepare_service
 
 
@@ -26,7 +27,7 @@ class ParserWorker:
         Path(self.config.health_file).write_text(str(time.time()), encoding="utf-8")
 
     async def run(self) -> int:
-        self._client = AsyncIOMotorClient(self.config.mongo_uri)
+        self._client = await connect_with_retry(self.config.mongo_uri)
         database = self._client[self.config.mongo_database]
         repository = ParserRepository(
             raw_collection=database[self.config.raw_logs_collection],

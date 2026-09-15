@@ -27,7 +27,7 @@ database_opts = [
 ]
 api_opts = [
     cfg.HostAddressOpt("bind_host", default="127.0.0.1"),
-    cfg.PortOpt("bind_port", default=8000),
+    cfg.PortOpt("bind_port", default=18000),
     cfg.IntOpt("workers", default=1, min=1),
     cfg.StrOpt("internal_service_token", secret=True),
     cfg.IntOpt("max_batch_records", default=500, min=1),
@@ -36,7 +36,7 @@ api_opts = [
     cfg.StrOpt("policy_file", default="/etc/rca-copilot/policy.yaml"),
 ]
 collector_opts = [
-    cfg.URIOpt("backend_batch_url", default="http://127.0.0.1:8000/logs/batch"),
+    cfg.URIOpt("backend_batch_url", default="http://127.0.0.1:18000/logs/batch"),
     cfg.StrOpt("state_file", default="/var/lib/rca-copilot/collector.cursor"),
     cfg.IntOpt("batch_size", default=50, min=1),
     cfg.FloatOpt("flush_interval_seconds", default=2.0, min=0.1),

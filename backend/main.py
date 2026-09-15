@@ -6,7 +6,7 @@ import time
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
-from backend.database import get_repository, lifespan
+from backend.database import get_repository, lifespan, state as db_state
 from backend.config import get_settings
 from backend.models import BatchIngestRequest, BatchIngestResponse
 from backend.repository import RawLogRepository
@@ -30,7 +30,7 @@ def create_app(
             content_length = request.headers.get("content-length")
             if content_length and int(content_length) > settings.max_request_body_bytes:
                 return JSONResponse(
-                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                     content={"detail": {"error": "log batch request is too large"}},
                 )
             client = request.client.host if request.client else "unknown"
@@ -55,8 +55,20 @@ def create_app(
         return await call_next(request)
 
     @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok"}
+    async def health() -> JSONResponse:
+        if not db_state.db_ready or db_state.client is None:
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={"status": "unavailable", "reason": "MongoDB not connected"},
+            )
+        try:
+            await db_state.client.admin.command("ping")
+            return JSONResponse(content={"status": "ok"})
+        except Exception:
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={"status": "unavailable", "reason": "MongoDB ping failed"},
+            )
 
     @app.post("/logs/batch", response_model=BatchIngestResponse)
     async def ingest_logs_batch(
@@ -65,7 +77,7 @@ def create_app(
     ) -> BatchIngestResponse:
         if len(payload.records) > get_settings().max_batch_records:
             raise HTTPException(
-                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail={"error": "too many records in log batch"},
             )
         result = await repository.insert_raw_logs(payload.records)
